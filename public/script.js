@@ -19,71 +19,18 @@ document.getElementById('contentTypePostTypes').addEventListener('change', funct
   document.getElementById('postTypesSection').style.display = this.checked ? 'block' : 'none';
 });
 
-// Repeater Functions
-function addRepeaterItem(containerId, fieldType, placeholder) {
-  const container = document.getElementById(containerId);
-  const newItem = document.createElement('div');
-  newItem.className = 'repeater-item';
-  newItem.innerHTML = `
-    <input 
-      type="text" 
-      class="repeater-input" 
-      placeholder="${placeholder}"
-      data-field="${fieldType}"
-    >
-    <button type="button" class="btn-remove" title="Remove">×</button>
-  `;
-  container.appendChild(newItem);
-}
-
-function removeRepeaterItem(button) {
-  const item = button.parentElement;
-  const container = item.parentElement;
-  
-  // Keep at least one item
-  if (container.children.length > 1) {
-    item.remove();
-  } else {
-    // Clear the input instead of removing
-    const input = item.querySelector('.repeater-input');
-    input.value = '';
-  }
-}
-
-// Event delegation for repeater buttons
-document.addEventListener('click', function(e) {
-  // Handle "Add Another" buttons
-  if (e.target.classList.contains('btn-add-repeater') || e.target.closest('.btn-add-repeater')) {
-    const button = e.target.classList.contains('btn-add-repeater') ? e.target : e.target.closest('.btn-add-repeater');
-    const containerId = button.getAttribute('data-target');
-    const fieldType = button.getAttribute('data-field');
-    const placeholder = button.getAttribute('data-placeholder');
-    
-    if (containerId && fieldType && placeholder) {
-      addRepeaterItem(containerId, fieldType, placeholder);
-    }
+// Parse textarea data (one item per line)
+function getTextareaArrayData(textareaId) {
+  const textarea = document.getElementById(textareaId);
+  if (!textarea || !textarea.value) {
+    return [];
   }
   
-  // Handle "Remove" buttons
-  if (e.target.classList.contains('btn-remove')) {
-    removeRepeaterItem(e.target);
-  }
-});
-
-// Collect repeater data
-function getRepeaterData(containerId) {
-  const container = document.getElementById(containerId);
-  const inputs = container.querySelectorAll('.repeater-input');
-  const values = [];
-  
-  inputs.forEach(input => {
-    const value = input.value.trim();
-    if (value) {
-      values.push(value);
-    }
-  });
-  
-  return values;
+  // Split by newline, trim whitespace, filter empty lines
+  return textarea.value
+    .split('\n')
+    .map(line => line.trim())
+    .filter(line => line.length > 0);
 }
 
 // Login Form Handler
@@ -155,8 +102,8 @@ migrationForm.addEventListener('submit', async (e) => {
       wpPassword: document.getElementById('wpPassword').value,
       contentTypeCertainPages: certainPagesChecked,
       contentTypePostTypes: postTypesChecked,
-      certainPages: certainPagesChecked ? getRepeaterData('pagesRepeater') : [],
-      postTypes: postTypesChecked ? getRepeaterData('postTypesRepeater') : [],
+      certainPages: certainPagesChecked ? getTextareaArrayData('certainPagesTextarea') : [],
+      postTypes: postTypesChecked ? getTextareaArrayData('postTypesTextarea') : [],
       specialInstructions: document.getElementById('specialInstructions').value.trim()
     };
     

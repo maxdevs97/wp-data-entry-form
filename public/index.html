@@ -151,55 +151,43 @@
                 <small>Select at least one content type</small>
               </div>
 
-              <!-- Conditional: Certain Pages Repeater -->
+              <!-- Conditional: Certain Pages Textarea -->
               <div id="certainPagesSection" class="conditional-section" style="display: none;">
                 <div class="form-group">
-                  <label>Which Pages? *</label>
+                  <label for="certainPagesTextarea">Which Pages? *</label>
                   <small style="margin-bottom: 12px; display: block;">
-                    📝 Enter page identifiers. You can use:<br>
+                    📋 Enter page identifiers. You can use:<br>
                     • <strong>Page slug:</strong> <code>about-us</code> or <code>contact</code><br>
                     • <strong>Page ID:</strong> <code>42</code> or <code>123</code><br>
-                    • <strong>Full URL:</strong> <code>https://example.com/about-us</code>
+                    • <strong>Full URL:</strong> <code>https://example.com/about-us</code><br>
+                    • <strong>Wildcard pattern:</strong> <code>/blog/*</code>
                   </small>
-                  <div id="pagesRepeater" class="repeater-container">
-                    <div class="repeater-item">
-                      <input 
-                        type="text" 
-                        class="repeater-input" 
-                        placeholder="e.g., about-us or 42 or https://example.com/contact"
-                        data-field="page"
-                      >
-                      <button type="button" class="btn-remove" title="Remove">×</button>
-                    </div>
-                  </div>
-                  <button type="button" class="btn btn-secondary btn-add-repeater" data-target="pagesRepeater" data-field="page" data-placeholder="e.g., services or 89">
-                    + Add Another Page
-                  </button>
+                  <textarea 
+                    id="certainPagesTextarea" 
+                    name="certainPagesTextarea" 
+                    rows="8"
+                    placeholder="Enter one page per line. Supports slugs, IDs, URLs, or wildcards:&#10;about-us&#10;42&#10;https://example.com/contact&#10;/blog/*"
+                    style="font-family: 'Segoe UI', system-ui, -apple-system, sans-serif; font-size: 14px; resize: vertical; min-height: 150px;"
+                  ></textarea>
                 </div>
               </div>
 
-              <!-- Conditional: Post Types Repeater -->
+              <!-- Conditional: Post Types Textarea -->
               <div id="postTypesSection" class="conditional-section" style="display: none;">
                 <div class="form-group">
-                  <label>Which Post Types? *</label>
+                  <label for="postTypesTextarea">Which Post Types? *</label>
                   <small style="margin-bottom: 12px; display: block;">
                     📝 Enter custom post type slugs (e.g., "portfolio", "testimonials", "team").<br>
-                    Standard types like "post" and "page" are available by default.
+                    Standard types like "post" and "page" are available by default.<br>
+                    <strong>Enter one post type per line.</strong>
                   </small>
-                  <div id="postTypesRepeater" class="repeater-container">
-                    <div class="repeater-item">
-                      <input 
-                        type="text" 
-                        class="repeater-input" 
-                        placeholder="e.g., portfolio or testimonials"
-                        data-field="postType"
-                      >
-                      <button type="button" class="btn-remove" title="Remove">×</button>
-                    </div>
-                  </div>
-                  <button type="button" class="btn btn-secondary btn-add-repeater" data-target="postTypesRepeater" data-field="postType" data-placeholder="e.g., team or events">
-                    + Add Another Post Type
-                  </button>
+                  <textarea 
+                    id="postTypesTextarea" 
+                    name="postTypesTextarea" 
+                    rows="6"
+                    placeholder="Enter one post type per line:&#10;portfolio&#10;testimonials&#10;team"
+                    style="font-family: 'Segoe UI', system-ui, -apple-system, sans-serif; font-size: 14px; resize: vertical; min-height: 120px;"
+                  ></textarea>
                 </div>
               </div>
             </section>

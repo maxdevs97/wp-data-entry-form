@@ -1,0 +1,55 @@
+{
+  "name": "wp-data-entry-form",
+  "region": "nyc",
+  "services": [
+    {
+      "name": "web",
+      "github": {
+        "repo": "maxdevs97/wp-data-entry-form",
+        "branch": "main",
+        "deploy_on_push": true
+      },
+      "build_command": "npm install",
+      "run_command": "npm start",
+      "environment_slug": "node-js",
+      "instance_count": 1,
+      "instance_size_slug": "basic-xxs",
+      "http_port": 3000,
+      "envs": [
+        {
+          "key": "NODE_ENV",
+          "value": "production",
+          "scope": "RUN_TIME",
+          "type": "GENERAL"
+        },
+        {
+          "key": "FORM_PASSWORD",
+          "value": "SherTeam2026!Secure",
+          "scope": "RUN_TIME",
+          "type": "SECRET"
+        },
+        {
+          "key": "GOOGLE_SHEET_ID",
+          "value": "1_2ojO0QAtYiHVHGv1EGOoUi5i9Ady7ey4tJUEYAfXpk",
+          "scope": "RUN_TIME",
+          "type": "GENERAL"
+        },
+        {
+          "key": "EMAIL_FROM",
+          "value": "noreply@sheragency.com",
+          "scope": "RUN_TIME",
+          "type": "GENERAL"
+        },
+        {
+          "key": "GOOGLE_CREDENTIALS",
+          "value": "{\"type\":\"service_account\",\"project_id\":\"gen-lang-client-0723023532\",\"private_key_id\":\"89a4d1a8054b560a862d35cc07e7a388f60e2071\",\"private_key\":\"-----BEGIN PRIVATE KEY-----\\nMIIEvQIBADANBgkqhkiG9w0BAQEFAASCBKcwggSjAgEAAoIBAQCosk5GGGl6PBBT\\nZVkG/1NBThojLOQiXQBWiQ/vox9+XnVqvP/cPlZeG/OtudtJNtLrlLiO3TVM0kjR\\nQgexDcDim1Gf30VWbr1Yxd+5r7mwK/kJ2RZ/c22MSSDqSO7ua+zNP/7L1XNK35EU\\nvUEdCkTdj7QEmLN8zdPI6BGVEz84UCFHhdOq6k+FI164zDpOhWq0XrO6eg9pFojI\\nuV8nhS63iaV6xdsris6eU1wYBAOzdJLBhHI6JKcQyHS4r03443tU8TWPDHiFxv8m\\nG1sXy9l9dHxm54/vrjksyBTVBMK/cgfyuWXhuESzSPT9njXxI0woNXsfNM96J6la\\n/EQNhySJAgMBAAECggEAAu09AGhSBCXgnqHGfqGVXy+ssmmH97SnWdj85spstHON\\nE/H9emO2eeGAQ8ZSsJ174UxuO0RJNXD8hGzh10eGzielreFgwZQgQtcD/6O11AGf\\nS3Vxt3pYLzPhl072njpPHGx8ziqA2o6wZKy34XoZIcLpe57ulj636udjzrNLyH1M\\nLoilfJPsB3i3latPgdy42XkaB99wqiTr2+by1nULE+UJHC9e55YYL0CbcSo5hctE\\nIIcuttzs9GRvAWIfz/D4L5fr+QEL2oq6YmpcIEa9IbwsuH1oG7NCuRUvwNoNuiKB\\nfnq/DON7PMb7s1RqHzfoSB7mmxjD29TpK/inxh5v1QKBgQDZvdZP3DXaLWjGA8qS\\n1VLQJxVR2kttiJdCtm/nKewodUXx0AOkSHTxrYZIUvC97weCAOrDARKlijKZqlcr\\nkM6BQi9wUajeycH+xkmlyxS+ozoqYBz3MJmKe7JH7zdzzYvLTBEjDWyFmo9dlRtE\\nK/lsmrxX+cjiTyWHSZscDwJTtwKBgQDGVmOiJxkwzqrStbScoIxHpr1yxJt8Xq00\\nUvMRdEfZPfYFzGxpGyYgLv2N2sPdEQajX7bmYBpgsbo9tvSShLnCyKgzW1SMF8BY\\nmjENMQ0/OH+QseEz2ndt/sicB9f8RWEHhJrbkNrqfjg+2jA2Ew9q6qVUOvPt7ytV\\n4TxJ0XDJvwKBgAWubF8dEdKliKxSAQEfy89elbHTDlDHVZsKA5V2hJDxrmeG0/F/\\nan2711sfvuRVzk5YE8gOyRvEpVlZFnkuiBTbUz2NA+j8PrGVHurSh7IJtETSyS6x\\n9++jFp3F4h6FaHZff7r4aLJ7u+3nLBT1SMbKqsto2xL8mbAT/ZYX1im1AoGBAKzv\\nMGp3euByosGcy8Fxvz7OZQtH4GbdyloAJY5HfEowW26M4s32bRTMxCpG4FbF/KrA\\nzyIqE3XSIZikCLYkYjAzc21sKdkI8J6Qu0pMRcelBJ1ua/UhfNb8u4BI2otNFyBO\\nABSIRkkGCxbKehT8I4pO1B8QVBZXXsq/3ChlJNnTAoGADPfmA3pJbsQSDwTmrVNp\\n24vh9bm4kM+lehSqxc2e7Z6U5bsH/lebP1WiHr7kUVQUesEIgPc/6BaJuCfa1Dvg\\n01JtYR4OBq5yc4RJiGz33R9VL/OQ4rdxGkg9EbbhB+/sTzP9EFNmT5Xu59jgFuJF\\nOEAcwdInt1raSpa6Mj2aXq8=\\n-----END PRIVATE KEY-----\\n\",\"client_email\":\"hex-s-login@gen-lang-client-0723023532.iam.gserviceaccount.com\",\"client_id\":\"112828911586191752024\",\"auth_uri\":\"https://accounts.google.com/o/oauth2/auth\",\"token_uri\":\"https://oauth2.googleapis.com/token\",\"auth_provider_x509_cert_url\":\"https://www.googleapis.com/oauth2/v1/certs\",\"client_x509_cert_url\":\"https://www.googleapis.com/robot/v1/metadata/x509/hex-s-login%40gen-lang-client-0723023532.iam.gserviceaccount.com\",\"universe_domain\":\"googleapis.com\"}",
+          "scope": "RUN_TIME",
+          "type": "SECRET"
+        }
+      ],
+      "health_check": {
+        "http_path": "/health"
+      }
+    }
+  ]
+}
