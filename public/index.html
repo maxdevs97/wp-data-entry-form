@@ -116,38 +116,91 @@
                 </div>
 
                 <div class="form-group">
-                  <label for="wpPassword">Destination WP Password *</label>
+                  <label for="wpPassword">Destination WP Application Password *</label>
                   <input 
                     type="password" 
                     id="wpPassword" 
                     name="wpPassword" 
-                    placeholder="••••••••"
+                    placeholder="xxxx xxxx xxxx xxxx xxxx xxxx"
                     required
                     autocomplete="new-password"
                   >
+                  <small>
+                    🔐 <strong>Application Passwords are more secure than regular passwords.</strong><br>
+                    Generate in WordPress: Users → Profile → Application Passwords<br>
+                    <a href="https://wordpress.org/support/article/application-passwords/" target="_blank" style="color: var(--accent-primary);">Learn more about Application Passwords →</a>
+                  </small>
                 </div>
               </div>
 
               <div class="form-group">
-                <label for="contentType">Content Type to Migrate *</label>
-                <select id="contentType" name="contentType" required>
-                  <option value="">Select content type...</option>
-                  <option value="blog posts">Blog Posts</option>
-                  <option value="products">Products (WooCommerce)</option>
-                  <option value="pages">Pages</option>
-                  <option value="all">All Content</option>
-                </select>
+                <label>Content Type to Migrate *</label>
+                <div class="checkbox-group">
+                  <label class="checkbox-label inline">
+                    <input type="checkbox" id="contentTypeCertainPages" name="contentTypeCertainPages">
+                    <span class="checkbox-custom"></span>
+                    <span class="checkbox-text">Certain Pages</span>
+                  </label>
+                  
+                  <label class="checkbox-label inline">
+                    <input type="checkbox" id="contentTypePostTypes" name="contentTypePostTypes">
+                    <span class="checkbox-custom"></span>
+                    <span class="checkbox-text">Post Types</span>
+                  </label>
+                </div>
+                <small>Select at least one content type</small>
               </div>
 
-              <div class="form-group">
-                <label for="postTypes">Custom Post Types (optional)</label>
-                <input 
-                  type="text" 
-                  id="postTypes" 
-                  name="postTypes" 
-                  placeholder="e.g., portfolio, testimonials"
-                >
-                <small>Comma-separated list of custom post types to include</small>
+              <!-- Conditional: Certain Pages Repeater -->
+              <div id="certainPagesSection" class="conditional-section" style="display: none;">
+                <div class="form-group">
+                  <label>Which Pages? *</label>
+                  <small style="margin-bottom: 12px; display: block;">
+                    📝 Enter page identifiers. You can use:<br>
+                    • <strong>Page slug:</strong> <code>about-us</code> or <code>contact</code><br>
+                    • <strong>Page ID:</strong> <code>42</code> or <code>123</code><br>
+                    • <strong>Full URL:</strong> <code>https://example.com/about-us</code>
+                  </small>
+                  <div id="pagesRepeater" class="repeater-container">
+                    <div class="repeater-item">
+                      <input 
+                        type="text" 
+                        class="repeater-input" 
+                        placeholder="e.g., about-us or 42 or https://example.com/contact"
+                        data-field="page"
+                      >
+                      <button type="button" class="btn-remove" onclick="removeRepeaterItem(this)" title="Remove">×</button>
+                    </div>
+                  </div>
+                  <button type="button" class="btn btn-secondary btn-add-repeater" onclick="addRepeaterItem('pagesRepeater', 'page', 'e.g., services or 89')">
+                    + Add Another Page
+                  </button>
+                </div>
+              </div>
+
+              <!-- Conditional: Post Types Repeater -->
+              <div id="postTypesSection" class="conditional-section" style="display: none;">
+                <div class="form-group">
+                  <label>Which Post Types? *</label>
+                  <small style="margin-bottom: 12px; display: block;">
+                    📝 Enter custom post type slugs (e.g., "portfolio", "testimonials", "team").<br>
+                    Standard types like "post" and "page" are available by default.
+                  </small>
+                  <div id="postTypesRepeater" class="repeater-container">
+                    <div class="repeater-item">
+                      <input 
+                        type="text" 
+                        class="repeater-input" 
+                        placeholder="e.g., portfolio or testimonials"
+                        data-field="postType"
+                      >
+                      <button type="button" class="btn-remove" onclick="removeRepeaterItem(this)" title="Remove">×</button>
+                    </div>
+                  </div>
+                  <button type="button" class="btn btn-secondary btn-add-repeater" onclick="addRepeaterItem('postTypesRepeater', 'postType', 'e.g., team or events')">
+                    + Add Another Post Type
+                  </button>
+                </div>
               </div>
             </section>
 
@@ -163,17 +216,6 @@
                   rows="5"
                   placeholder="Any specific requirements, exclusions, or notes..."
                 ></textarea>
-              </div>
-
-              <div class="form-group">
-                <label class="checkbox-label">
-                  <input type="checkbox" id="priority" name="priority">
-                  <span class="checkbox-custom"></span>
-                  <span class="checkbox-text">
-                    🔴 Mark as Urgent
-                    <small>Prioritize this migration (1-2 business days)</small>
-                  </span>
-                </label>
               </div>
             </section>
 
@@ -199,7 +241,7 @@
           <li>Quality assurance checks ensure data integrity</li>
           <li>You receive a completion notification with results</li>
         </ol>
-        <p><strong>Processing time:</strong> Normal requests take 3-5 business days. Urgent requests are prioritized for 1-2 business days.</p>
+        <p><strong>Processing time:</strong> Requests are typically processed within 3-5 business days.</p>
       </div>
     </div>
   </div>

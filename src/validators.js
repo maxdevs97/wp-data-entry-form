@@ -39,13 +39,22 @@ function validateRequest(data) {
     return { valid: false, error: 'WordPress username is required' };
   }
   if (!wpPassword || wpPassword.trim().length === 0) {
-    return { valid: false, error: 'WordPress password is required' };
+    return { valid: false, error: 'WordPress Application Password is required' };
   }
 
-  // Content type
-  const validContentTypes = ['blog posts', 'products', 'pages', 'all'];
-  if (!contentType || !validContentTypes.includes(contentType.toLowerCase())) {
-    return { valid: false, error: 'Valid content type is required' };
+  // Content type validation
+  const { contentTypeCertainPages, contentTypePostTypes, certainPages, postTypes } = data;
+  
+  if (!contentTypeCertainPages && !contentTypePostTypes) {
+    return { valid: false, error: 'At least one content type must be selected' };
+  }
+  
+  if (contentTypeCertainPages && (!certainPages || certainPages.length === 0)) {
+    return { valid: false, error: 'Please specify at least one page when "Certain Pages" is selected' };
+  }
+  
+  if (contentTypePostTypes && (!postTypes || postTypes.length === 0)) {
+    return { valid: false, error: 'Please specify at least one post type when "Post Types" is selected' };
   }
 
   // XSS protection - basic sanitization check

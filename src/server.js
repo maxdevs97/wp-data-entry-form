@@ -77,10 +77,11 @@ app.post('/api/submit', submissionLimiter, checkPassword, async (req, res) => {
       destinationUrl,
       wpUsername,
       wpPassword,
-      contentType,
+      contentTypeCertainPages,
+      contentTypePostTypes,
+      certainPages,
       postTypes,
-      specialInstructions,
-      priority
+      specialInstructions
     } = req.body;
 
     // Validate request
@@ -98,6 +99,15 @@ app.post('/api/submit', submissionLimiter, checkPassword, async (req, res) => {
       });
     }
 
+    // Format content type for logging
+    const contentTypeDisplay = [];
+    if (contentTypeCertainPages) {
+      contentTypeDisplay.push(`Certain Pages: ${certainPages.join(', ')}`);
+    }
+    if (contentTypePostTypes) {
+      contentTypeDisplay.push(`Post Types: ${postTypes.join(', ')}`);
+    }
+    
     const submissionData = {
       timestamp: new Date().toISOString(),
       requesterName,
@@ -106,10 +116,12 @@ app.post('/api/submit', submissionLimiter, checkPassword, async (req, res) => {
       destinationUrl,
       wpUsername, // Will be encrypted in real deployment
       wpPassword, // Will be encrypted in real deployment
-      contentType,
-      postTypes: postTypes || 'N/A',
+      contentTypeCertainPages: contentTypeCertainPages || false,
+      contentTypePostTypes: contentTypePostTypes || false,
+      certainPages: certainPages || [],
+      postTypes: postTypes || [],
+      contentTypeDisplay: contentTypeDisplay.join(' | '),
       specialInstructions: specialInstructions || 'None',
-      priority: priority ? 'Urgent' : 'Normal',
       status: 'Pending Review'
     };
 

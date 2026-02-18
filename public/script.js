@@ -10,6 +10,62 @@ const formSuccess = document.getElementById('formSuccess');
 // State
 let accessPassword = '';
 
+// Conditional Section Toggles
+document.getElementById('contentTypeCertainPages').addEventListener('change', function() {
+  document.getElementById('certainPagesSection').style.display = this.checked ? 'block' : 'none';
+});
+
+document.getElementById('contentTypePostTypes').addEventListener('change', function() {
+  document.getElementById('postTypesSection').style.display = this.checked ? 'block' : 'none';
+});
+
+// Repeater Functions
+function addRepeaterItem(containerId, fieldType, placeholder) {
+  const container = document.getElementById(containerId);
+  const newItem = document.createElement('div');
+  newItem.className = 'repeater-item';
+  newItem.innerHTML = `
+    <input 
+      type="text" 
+      class="repeater-input" 
+      placeholder="${placeholder}"
+      data-field="${fieldType}"
+    >
+    <button type="button" class="btn-remove" onclick="removeRepeaterItem(this)" title="Remove">×</button>
+  `;
+  container.appendChild(newItem);
+}
+
+function removeRepeaterItem(button) {
+  const item = button.parentElement;
+  const container = item.parentElement;
+  
+  // Keep at least one item
+  if (container.children.length > 1) {
+    item.remove();
+  } else {
+    // Clear the input instead of removing
+    const input = item.querySelector('.repeater-input');
+    input.value = '';
+  }
+}
+
+// Collect repeater data
+function getRepeaterData(containerId) {
+  const container = document.getElementById(containerId);
+  const inputs = container.querySelectorAll('.repeater-input');
+  const values = [];
+  
+  inputs.forEach(input => {
+    const value = input.value.trim();
+    if (value) {
+      values.push(value);
+    }
+  });
+  
+  return values;
+}
+
 // Login Form Handler
 loginForm.addEventListener('submit', async (e) => {
   e.preventDefault();
@@ -66,6 +122,9 @@ migrationForm.addEventListener('submit', async (e) => {
   
   try {
     // Gather form data
+    const certainPagesChecked = document.getElementById('contentTypeCertainPages').checked;
+    const postTypesChecked = document.getElementById('contentTypePostTypes').checked;
+    
     const formData = {
       password: accessPassword,
       requesterName: document.getElementById('requesterName').value.trim(),
@@ -74,10 +133,11 @@ migrationForm.addEventListener('submit', async (e) => {
       destinationUrl: document.getElementById('destinationUrl').value.trim(),
       wpUsername: document.getElementById('wpUsername').value.trim(),
       wpPassword: document.getElementById('wpPassword').value,
-      contentType: document.getElementById('contentType').value,
-      postTypes: document.getElementById('postTypes').value.trim(),
-      specialInstructions: document.getElementById('specialInstructions').value.trim(),
-      priority: document.getElementById('priority').checked
+      contentTypeCertainPages: certainPagesChecked,
+      contentTypePostTypes: postTypesChecked,
+      certainPages: certainPagesChecked ? getRepeaterData('pagesRepeater') : [],
+      postTypes: postTypesChecked ? getRepeaterData('postTypesRepeater') : [],
+      specialInstructions: document.getElementById('specialInstructions').value.trim()
     };
     
     // Client-side validation
@@ -163,12 +223,21 @@ function validateForm(data) {
     return { valid: false, error: 'WordPress username is required.' };
   }
   if (!data.wpPassword || data.wpPassword.length < 6) {
-    return { valid: false, error: 'WordPress password is required (minimum 6 characters).' };
+    return { valid: false, error: 'WordPress Application Password is required (minimum 6 characters).' };
   }
   
-  // Content type
-  if (!data.contentType) {
-    return { valid: false, error: 'Please select a content type to migrate.' };
+  // Content type validation
+  if (!data.contentTypeCertainPages && !data.contentTypePostTypes) {
+    return { valid: false, error: 'Please select at least one content type (Certain Pages or Post Types).' };
+  }
+  
+  // Validate repeater fields
+  if (data.contentTypeCertainPages && data.certainPages.length === 0) {
+    return { valid: false, error: 'Please specify at least one page to migrate.' };
+  }
+  
+  if (data.contentTypePostTypes && data.postTypes.length === 0) {
+    return { valid: false, error: 'Please specify at least one post type to migrate.' };
   }
   
   return { valid: true };
