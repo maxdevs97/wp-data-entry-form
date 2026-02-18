@@ -31,7 +31,7 @@ function addRepeaterItem(containerId, fieldType, placeholder) {
       placeholder="${placeholder}"
       data-field="${fieldType}"
     >
-    <button type="button" class="btn-remove" onclick="removeRepeaterItem(this)" title="Remove">×</button>
+    <button type="button" class="btn-remove" title="Remove">×</button>
   `;
   container.appendChild(newItem);
 }
@@ -49,6 +49,26 @@ function removeRepeaterItem(button) {
     input.value = '';
   }
 }
+
+// Event delegation for repeater buttons
+document.addEventListener('click', function(e) {
+  // Handle "Add Another" buttons
+  if (e.target.classList.contains('btn-add-repeater') || e.target.closest('.btn-add-repeater')) {
+    const button = e.target.classList.contains('btn-add-repeater') ? e.target : e.target.closest('.btn-add-repeater');
+    const containerId = button.getAttribute('data-target');
+    const fieldType = button.getAttribute('data-field');
+    const placeholder = button.getAttribute('data-placeholder');
+    
+    if (containerId && fieldType && placeholder) {
+      addRepeaterItem(containerId, fieldType, placeholder);
+    }
+  }
+  
+  // Handle "Remove" buttons
+  if (e.target.classList.contains('btn-remove')) {
+    removeRepeaterItem(e.target);
+  }
+});
 
 // Collect repeater data
 function getRepeaterData(containerId) {

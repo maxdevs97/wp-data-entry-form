@@ -169,10 +169,10 @@
                         placeholder="e.g., about-us or 42 or https://example.com/contact"
                         data-field="page"
                       >
-                      <button type="button" class="btn-remove" onclick="removeRepeaterItem(this)" title="Remove">×</button>
+                      <button type="button" class="btn-remove" title="Remove">×</button>
                     </div>
                   </div>
-                  <button type="button" class="btn btn-secondary btn-add-repeater" onclick="addRepeaterItem('pagesRepeater', 'page', 'e.g., services or 89')">
+                  <button type="button" class="btn btn-secondary btn-add-repeater" data-target="pagesRepeater" data-field="page" data-placeholder="e.g., services or 89">
                     + Add Another Page
                   </button>
                 </div>
@@ -194,10 +194,10 @@
                         placeholder="e.g., portfolio or testimonials"
                         data-field="postType"
                       >
-                      <button type="button" class="btn-remove" onclick="removeRepeaterItem(this)" title="Remove">×</button>
+                      <button type="button" class="btn-remove" title="Remove">×</button>
                     </div>
                   </div>
-                  <button type="button" class="btn btn-secondary btn-add-repeater" onclick="addRepeaterItem('postTypesRepeater', 'postType', 'e.g., team or events')">
+                  <button type="button" class="btn btn-secondary btn-add-repeater" data-target="postTypesRepeater" data-field="postType" data-placeholder="e.g., team or events">
                     + Add Another Post Type
                   </button>
                 </div>
