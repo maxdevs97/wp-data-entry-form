@@ -1,0 +1,209 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>WordPress Migration Request Form</title>
+  <link rel="stylesheet" href="styles.css">
+</head>
+<body>
+  <div class="container">
+    <!-- Password Gate -->
+    <div id="loginScreen" class="screen active">
+      <div class="card">
+        <div class="card-header">
+          <h1>🔐 Team Access</h1>
+          <p>WordPress Migration Request System</p>
+        </div>
+        <div class="card-body">
+          <form id="loginForm">
+            <div class="form-group">
+              <label for="password">Access Password</label>
+              <input 
+                type="password" 
+                id="password" 
+                name="password" 
+                placeholder="Enter team password"
+                required
+                autocomplete="off"
+              >
+            </div>
+            <button type="submit" class="btn btn-primary">
+              <span class="btn-text">Access Form</span>
+              <span class="btn-loader" style="display: none;">●●●</span>
+            </button>
+            <div id="loginError" class="error-message" style="display: none;"></div>
+          </form>
+        </div>
+      </div>
+    </div>
+
+    <!-- Main Form -->
+    <div id="formScreen" class="screen">
+      <div class="card">
+        <div class="card-header">
+          <h1>📋 WordPress Migration Request</h1>
+          <p>Submit a new content migration task</p>
+        </div>
+        <div class="card-body">
+          <form id="migrationForm">
+            <!-- Requester Information -->
+            <section class="form-section">
+              <h2>Your Information</h2>
+              
+              <div class="form-group">
+                <label for="requesterName">Your Name *</label>
+                <input 
+                  type="text" 
+                  id="requesterName" 
+                  name="requesterName" 
+                  placeholder="John Doe"
+                  required
+                >
+              </div>
+
+              <div class="form-group">
+                <label for="requesterEmail">Your Email *</label>
+                <input 
+                  type="email" 
+                  id="requesterEmail" 
+                  name="requesterEmail" 
+                  placeholder="you@sheragency.com"
+                  required
+                >
+              </div>
+            </section>
+
+            <!-- Migration Details -->
+            <section class="form-section">
+              <h2>Migration Details</h2>
+
+              <div class="form-group">
+                <label for="sourceUrl">Source URL (migrate FROM) *</label>
+                <input 
+                  type="url" 
+                  id="sourceUrl" 
+                  name="sourceUrl" 
+                  placeholder="https://old-site.com"
+                  required
+                >
+                <small>The website you want to copy content from</small>
+              </div>
+
+              <div class="form-group">
+                <label for="destinationUrl">Destination URL (migrate TO) *</label>
+                <input 
+                  type="url" 
+                  id="destinationUrl" 
+                  name="destinationUrl" 
+                  placeholder="https://new-site.com"
+                  required
+                >
+                <small>The website you want to migrate content to</small>
+              </div>
+
+              <div class="form-row">
+                <div class="form-group">
+                  <label for="wpUsername">Destination WP Username *</label>
+                  <input 
+                    type="text" 
+                    id="wpUsername" 
+                    name="wpUsername" 
+                    placeholder="admin"
+                    required
+                    autocomplete="off"
+                  >
+                </div>
+
+                <div class="form-group">
+                  <label for="wpPassword">Destination WP Password *</label>
+                  <input 
+                    type="password" 
+                    id="wpPassword" 
+                    name="wpPassword" 
+                    placeholder="••••••••"
+                    required
+                    autocomplete="new-password"
+                  >
+                </div>
+              </div>
+
+              <div class="form-group">
+                <label for="contentType">Content Type to Migrate *</label>
+                <select id="contentType" name="contentType" required>
+                  <option value="">Select content type...</option>
+                  <option value="blog posts">Blog Posts</option>
+                  <option value="products">Products (WooCommerce)</option>
+                  <option value="pages">Pages</option>
+                  <option value="all">All Content</option>
+                </select>
+              </div>
+
+              <div class="form-group">
+                <label for="postTypes">Custom Post Types (optional)</label>
+                <input 
+                  type="text" 
+                  id="postTypes" 
+                  name="postTypes" 
+                  placeholder="e.g., portfolio, testimonials"
+                >
+                <small>Comma-separated list of custom post types to include</small>
+              </div>
+            </section>
+
+            <!-- Additional Options -->
+            <section class="form-section">
+              <h2>Additional Options</h2>
+
+              <div class="form-group">
+                <label for="specialInstructions">Special Instructions (optional)</label>
+                <textarea 
+                  id="specialInstructions" 
+                  name="specialInstructions" 
+                  rows="5"
+                  placeholder="Any specific requirements, exclusions, or notes..."
+                ></textarea>
+              </div>
+
+              <div class="form-group">
+                <label class="checkbox-label">
+                  <input type="checkbox" id="priority" name="priority">
+                  <span class="checkbox-custom"></span>
+                  <span class="checkbox-text">
+                    🔴 Mark as Urgent
+                    <small>Prioritize this migration (1-2 business days)</small>
+                  </span>
+                </label>
+              </div>
+            </section>
+
+            <div class="form-actions">
+              <button type="submit" class="btn btn-primary btn-large">
+                <span class="btn-text">Submit Migration Request</span>
+                <span class="btn-loader" style="display: none;">●●●</span>
+              </button>
+            </div>
+
+            <div id="formError" class="error-message" style="display: none;"></div>
+            <div id="formSuccess" class="success-message" style="display: none;"></div>
+          </form>
+        </div>
+      </div>
+
+      <div class="info-card">
+        <h3>📚 How It Works</h3>
+        <ol>
+          <li>Submit your migration request with source and destination details</li>
+          <li>Kit reviews the request and validates requirements</li>
+          <li>Forge executes the migration using proven WordPress REST API patterns</li>
+          <li>Quality assurance checks ensure data integrity</li>
+          <li>You receive a completion notification with results</li>
+        </ol>
+        <p><strong>Processing time:</strong> Normal requests take 3-5 business days. Urgent requests are prioritized for 1-2 business days.</p>
+      </div>
+    </div>
+  </div>
+
+  <script src="script.js"></script>
+</body>
+</html>
