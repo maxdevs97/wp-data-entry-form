@@ -9,6 +9,7 @@ const { validateRequest, testWPConnection } = require('./validators');
 const { addToKitBacklog } = require('./backlog');
 const { logToGoogleSheet } = require('./sheets');
 const { sendConfirmationEmail } = require('./email');
+const jobManager = require('./jobs');
 
 const app = express();
 const PORT = process.env.PORT || 3000;
@@ -65,6 +66,86 @@ app.post('/api/verify-password', (req, res) => {
     return res.json({ valid: true });
   }
   res.status(401).json({ valid: false, error: 'Invalid password' });
+});
+
+// Job status endpoint
+app.get('/api/job-status/:jobId', async (req, res) => {
+  try {
+    const { jobId } = req.params;
+    const job = await jobManager.getJob(jobId);
+    
+    if (!job) {
+      return res.status(404).json({ error: 'Job not found' });
+    }
+    
+    res.json(job);
+  } catch (error) {
+    console.error('Job status error:', error);
+    res.status(500).json({ error: 'Failed to retrieve job status' });
+  }
+});
+
+// Update job progress endpoint (called by migration framework)
+app.post('/api/update-job/:jobId', async (req, res) => {
+  try {
+    const { jobId } = req.params;
+    const updates = req.body;
+    
+    const job = await jobManager.updateJob(jobId, updates);
+    
+    res.json({ success: true, job });
+  } catch (error) {
+    console.error('Job update error:', error);
+    res.status(500).json({ error: 'Failed to update job' });
+  }
+});
+
+// Restore backup endpoint
+app.post('/api/restore/:jobId', checkPassword, async (req, res) => {
+  try {
+    const { jobId } = req.params;
+    const job = await jobManager.getJob(jobId);
+    
+    if (!job) {
+      return res.status(404).json({ error: 'Job not found' });
+    }
+    
+    if (!job.backupInfo || !job.backupInfo.timestamp) {
+      return res.status(400).json({ error: 'No backup available for this job' });
+    }
+    
+    // Add restore request to Kit's backlog
+    const restoreTask = {
+      timestamp: new Date().toISOString(),
+      type: 'restore_backup',
+      jobId: job.jobId,
+      backupTimestamp: job.backupInfo.timestamp,
+      destinationUrl: job.submissionData.destinationUrl,
+      requesterEmail: job.submissionData.requesterEmail,
+      requesterName: job.submissionData.requesterName
+    };
+    
+    await addToKitBacklog({
+      ...restoreTask,
+      requesterName: `RESTORE REQUEST - ${job.submissionData.requesterName}`,
+      requesterEmail: job.submissionData.requesterEmail,
+      sourceUrl: 'N/A (Restore)',
+      destinationUrl: job.submissionData.destinationUrl,
+      contentTypeDisplay: 'Backup Restoration',
+      specialInstructions: `RESTORE BACKUP: ${job.backupInfo.timestamp}\nOriginal Job: ${job.jobId}\nBackup Directory: ${job.backupInfo.directory}`,
+      status: 'Urgent - Restore Request'
+    });
+    
+    res.json({ 
+      success: true, 
+      message: 'Restore request submitted to Kit. This will rollback the migration using the backup.',
+      backupTimestamp: job.backupInfo.timestamp
+    });
+    
+  } catch (error) {
+    console.error('Restore request error:', error);
+    res.status(500).json({ error: 'Failed to submit restore request' });
+  }
 });
 
 // Main submission endpoint
@@ -125,11 +206,14 @@ app.post('/api/submit', submissionLimiter, checkPassword, async (req, res) => {
       status: 'Pending Review'
     };
 
-    // Add to Kit's backlog
-    await addToKitBacklog(submissionData);
+    // Create job for tracking
+    const job = await jobManager.createJob(submissionData);
+
+    // Add to Kit's backlog with job ID
+    await addToKitBacklog({ ...submissionData, jobId: job.jobId });
 
     // Log to Google Sheet
-    await logToGoogleSheet(submissionData);
+    await logToGoogleSheet({ ...submissionData, jobId: job.jobId });
 
     // Send confirmation email
     await sendConfirmationEmail(submissionData);
@@ -137,6 +221,7 @@ app.post('/api/submit', submissionLimiter, checkPassword, async (req, res) => {
     res.json({ 
       success: true, 
       message: 'Migration request submitted successfully. You will receive a confirmation email shortly.',
+      jobId: job.jobId,
       requestId: Buffer.from(submissionData.timestamp).toString('base64').substring(0, 12)
     });
 
