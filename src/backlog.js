@@ -5,7 +5,13 @@ const path = require('path');
  * Add migration request to Kit's backlog.md (## Inbox section)
  */
 async function addToKitBacklog(submissionData) {
-  const backlogPath = process.env.KIT_BACKLOG_PATH || '/Users/max/.openclaw/workspace/backlog.md';
+  const backlogPath = process.env.KIT_BACKLOG_PATH;
+  
+  // Skip backlog logging if path not configured (deployed environments)
+  if (!backlogPath) {
+    console.log('ℹ️ KIT_BACKLOG_PATH not configured. Skipping backlog.md update (deployed mode).');
+    return { success: true, skipped: true, reason: 'No backlog path configured' };
+  }
   
   try {
     // Read current backlog
@@ -14,10 +20,12 @@ async function addToKitBacklog(submissionData) {
       backlogContent = await fs.readFile(backlogPath, 'utf-8');
     } catch (error) {
       if (error.code === 'ENOENT') {
-        // Create new backlog if doesn't exist
+        // Create new backlog if doesn't exist (local development)
         backlogContent = '# Backlog\n\n## Inbox\n\n';
       } else {
-        throw error;
+        // Fail gracefully if file system access fails
+        console.warn(`⚠️ Cannot access backlog file: ${error.message}`);
+        return { success: true, skipped: true, reason: 'File system access failed' };
       }
     }
 

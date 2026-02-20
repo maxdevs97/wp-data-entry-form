@@ -4,11 +4,22 @@ const fs = require('fs');
 // Load Google Service Account credentials
 let credentials;
 try {
-  const credPath = process.env.GOOGLE_CREDENTIALS_PATH || 
-                   '/Users/max/.openclaw/workspace/.env.google-service-account.json';
-  credentials = JSON.parse(fs.readFileSync(credPath, 'utf-8'));
+  // Try environment variable first (for DigitalOcean deployment)
+  if (process.env.GOOGLE_CREDENTIALS) {
+    credentials = JSON.parse(process.env.GOOGLE_CREDENTIALS);
+    console.log('✅ Google credentials loaded from environment variable');
+  } 
+  // Fall back to file path (for local development)
+  else if (process.env.GOOGLE_CREDENTIALS_PATH) {
+    const credPath = process.env.GOOGLE_CREDENTIALS_PATH;
+    credentials = JSON.parse(fs.readFileSync(credPath, 'utf-8'));
+    console.log('✅ Google credentials loaded from file path');
+  }
+  else {
+    throw new Error('No Google credentials found in environment');
+  }
 } catch (error) {
-  console.error('⚠️ Google credentials not found. Sheet logging will be skipped.');
+  console.error('⚠️ Google credentials not found. Sheet logging will be skipped.', error.message);
   credentials = null;
 }
 
