@@ -194,7 +194,7 @@ select {
 }
 
 .checkbox-label:hover {
-  border-color: var(--accent-primary);
+  border-color: var(--text-secondary);
 }
 
 .checkbox-label input[type="checkbox"] {
@@ -213,8 +213,8 @@ select {
 }
 
 .checkbox-label input[type="checkbox"]:checked + .checkbox-custom {
-  background: var(--accent-primary);
-  border-color: var(--accent-primary);
+  background: var(--text-secondary);
+  border-color: var(--text-secondary);
 }
 
 .checkbox-label input[type="checkbox"]:checked + .checkbox-custom::after {
@@ -223,7 +223,7 @@ select {
   top: 50%;
   left: 50%;
   transform: translate(-50%, -50%);
-  color: white;
+  color: var(--bg-primary);
   font-size: 16px;
   font-weight: bold;
 }
