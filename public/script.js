@@ -95,7 +95,20 @@ migrationForm.addEventListener('submit', async (e) => {
       contentTypePostTypes: postTypesChecked,
       certainPages: certainPagesChecked ? getTextareaArrayData('certainPagesTextarea') : [],
       postTypes: postTypesChecked ? getTextareaArrayData('postTypesTextarea') : [],
-      specialInstructions: document.getElementById('specialInstructions').value.trim()
+      specialInstructions: document.getElementById('specialInstructions').value.trim(),
+      preserve: {
+        slug: document.getElementById('preserveSlug').checked,
+        headingStructures: document.getElementById('preserveHeadingStructures').checked,
+        title: document.getElementById('preserveTitle').checked,
+        featuredImages: document.getElementById('preserveFeaturedImages').checked,
+        bodyContent: document.getElementById('preserveBodyContent').checked,
+        categories: document.getElementById('preserveCategories').checked,
+        tags: document.getElementById('preserveTags').checked,
+        publicationDate: document.getElementById('preservePublicationDate').checked,
+        author: document.getElementById('preserveAuthor').checked,
+        seoMetadata: document.getElementById('preserveSEOMetadata').checked,
+        internalLinks: document.getElementById('preserveInternalLinks').checked
+      }
     };
     
     const validation = validateForm(formData);

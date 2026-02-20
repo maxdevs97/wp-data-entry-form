@@ -127,22 +127,96 @@
                 <small>Select at least one content type</small>
               </div>
 
+              <!-- What to Preserve Section -->
+              <div class="form-group">
+                <label>What to Preserve? *</label>
+                <small style="margin-bottom: 12px; display: block;">
+                  Select which elements should be migrated. All are selected by default.
+                </small>
+                <div class="checkbox-group">
+                  <label class="checkbox-label">
+                    <input type="checkbox" id="preserveSlug" name="preserveSlug" checked>
+                    <span class="checkbox-custom"></span>
+                    <span class="checkbox-text">Slug</span>
+                  </label>
+                  
+                  <label class="checkbox-label">
+                    <input type="checkbox" id="preserveHeadingStructures" name="preserveHeadingStructures" checked>
+                    <span class="checkbox-custom"></span>
+                    <span class="checkbox-text">Heading Structures</span>
+                  </label>
+                  
+                  <label class="checkbox-label">
+                    <input type="checkbox" id="preserveTitle" name="preserveTitle" checked>
+                    <span class="checkbox-custom"></span>
+                    <span class="checkbox-text">Title</span>
+                  </label>
+                  
+                  <label class="checkbox-label">
+                    <input type="checkbox" id="preserveFeaturedImages" name="preserveFeaturedImages" checked>
+                    <span class="checkbox-custom"></span>
+                    <span class="checkbox-text">Featured Images</span>
+                  </label>
+                  
+                  <label class="checkbox-label">
+                    <input type="checkbox" id="preserveBodyContent" name="preserveBodyContent" checked>
+                    <span class="checkbox-custom"></span>
+                    <span class="checkbox-text">Body Content</span>
+                  </label>
+                  
+                  <label class="checkbox-label">
+                    <input type="checkbox" id="preserveCategories" name="preserveCategories" checked>
+                    <span class="checkbox-custom"></span>
+                    <span class="checkbox-text">Categories</span>
+                  </label>
+                  
+                  <label class="checkbox-label">
+                    <input type="checkbox" id="preserveTags" name="preserveTags" checked>
+                    <span class="checkbox-custom"></span>
+                    <span class="checkbox-text">Tags</span>
+                  </label>
+                  
+                  <label class="checkbox-label">
+                    <input type="checkbox" id="preservePublicationDate" name="preservePublicationDate" checked>
+                    <span class="checkbox-custom"></span>
+                    <span class="checkbox-text">Publication Date</span>
+                  </label>
+                  
+                  <label class="checkbox-label">
+                    <input type="checkbox" id="preserveAuthor" name="preserveAuthor" checked>
+                    <span class="checkbox-custom"></span>
+                    <span class="checkbox-text">Author</span>
+                  </label>
+                  
+                  <label class="checkbox-label">
+                    <input type="checkbox" id="preserveSEOMetadata" name="preserveSEOMetadata" checked>
+                    <span class="checkbox-custom"></span>
+                    <span class="checkbox-text">SEO Metadata (meta descriptions, focus keywords)</span>
+                  </label>
+                  
+                  <label class="checkbox-label">
+                    <input type="checkbox" id="preserveInternalLinks" name="preserveInternalLinks" checked>
+                    <span class="checkbox-custom"></span>
+                    <span class="checkbox-text">Internal Links</span>
+                  </label>
+                </div>
+              </div>
+
               <!-- Conditional: Certain Pages Textarea -->
               <div id="certainPagesSection" class="conditional-section" style="display: none;">
                 <div class="form-group">
                   <label for="certainPagesTextarea">Which Pages? *</label>
                   <small style="margin-bottom: 12px; display: block;">
-                    📋 Enter page identifiers. You can use:<br>
-                    • <strong>Page slug:</strong> <code>about-us</code> or <code>contact</code><br>
-                    • <strong>Page ID:</strong> <code>42</code> or <code>123</code><br>
-                    • <strong>Full URL:</strong> <code>https://example.com/about-us</code><br>
-                    • <strong>Wildcard pattern:</strong> <code>/blog/*</code>
+                    📋 You can use <strong>technical identifiers</strong> (page slug, ID, URL, or wildcards like <code>/blog/*</code>) 
+                    <strong>OR</strong> just describe what you want in plain English 
+                    (e.g., "all blog posts", "about page", "contact page").<br>
+                    <strong>Enter one page per line.</strong>
                   </small>
                   <textarea 
                     id="certainPagesTextarea" 
                     name="certainPagesTextarea" 
                     rows="8"
-                    placeholder="Enter one page per line. Supports slugs, IDs, URLs, or wildcards:&#10;about-us&#10;42&#10;https://example.com/contact&#10;/blog/*"
+                    placeholder="Examples (one per line):&#10;about-us&#10;42&#10;https://example.com/contact&#10;/blog/*&#10;all blog posts&#10;contact page"
                     style="font-family: 'Segoe UI', system-ui, -apple-system, sans-serif; font-size: 14px; resize: vertical; min-height: 150px;"
                   ></textarea>
                 </div>
@@ -153,7 +227,8 @@
                 <div class="form-group">
                   <label for="postTypesTextarea">Which Post Types? *</label>
                   <small style="margin-bottom: 12px; display: block;">
-                    📝 Enter custom post type slugs (e.g., "portfolio", "testimonials", "team").<br>
+                    📝 You can use <strong>technical slugs</strong> (e.g., "portfolio", "testimonials", "team") 
+                    <strong>OR</strong> natural language descriptions (e.g., "blog posts", "team member profiles").<br>
                     Standard types like "post" and "page" are available by default.<br>
                     <strong>Enter one post type per line.</strong>
                   </small>
@@ -161,7 +236,7 @@
                     id="postTypesTextarea" 
                     name="postTypesTextarea" 
                     rows="6"
-                    placeholder="Enter one post type per line:&#10;portfolio&#10;testimonials&#10;team"
+                    placeholder="Examples (one per line):&#10;portfolio&#10;testimonials&#10;blog posts&#10;team member profiles"
                     style="font-family: 'Segoe UI', system-ui, -apple-system, sans-serif; font-size: 14px; resize: vertical; min-height: 120px;"
                   ></textarea>
                 </div>
