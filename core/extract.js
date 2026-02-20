@@ -36,6 +36,9 @@ class ContentExtractor {
       return await this.catalogSiteFrontend(manifest);
     }
 
+    // If authenticated mode is requested, try it first, but fall back to unauthenticated on auth failure
+    const originalExtractionMode = this.extractionMode;
+
     // Authenticated catalog (original logic)
     for (const contentType of this.config.migration_settings.content_types) {
       try {
@@ -53,8 +56,11 @@ class ContentExtractor {
             per_page: 100
           };
           
-          // Only request non-published posts if authenticated
-          if (this.extractionMode === 'authenticated' && this.config.source.auth && this.config.source.auth.method) {
+          // Only request non-published posts if authenticated with valid credentials
+          if (this.extractionMode === 'authenticated' && 
+              this.config.source.auth && 
+              this.config.source.auth.method &&
+              this.config.source.auth.method !== 'none') {
             params.status = 'publish,draft,pending';
           }
           
@@ -71,6 +77,13 @@ class ContentExtractor {
             // Handle "invalid page number" error - this means we've reached the end
             if (error.response?.status === 400 && error.response?.data?.code === 'rest_post_invalid_page_number') {
               hasMore = false;
+            } else if (error.response?.status === 400 && error.response?.data?.code === 'rest_invalid_param' && 
+                       originalExtractionMode === 'authenticated' && params.status) {
+              // Auth failed when trying to get non-public posts - retry without auth params
+              this.logger.warn('Authenticated extraction failed, retrying without authentication');
+              this.extractionMode = 'unauthenticated';
+              delete params.status;
+              return await this.catalogSite(); // Retry with unauthenticated mode
             } else {
               // Re-throw other errors
               throw error;
@@ -241,8 +254,11 @@ class ContentExtractor {
       const endpoint = this.config.source.rest_endpoint + `/${contentType}s/${itemId}`;
       const params = {};
       
-      // Only request edit context if we have authentication
-      if (this.extractionMode === 'authenticated' && this.config.source.auth && this.config.source.auth.method) {
+      // Only request edit context if we have valid authentication
+      if (this.extractionMode === 'authenticated' && 
+          this.config.source.auth && 
+          this.config.source.auth.method &&
+          this.config.source.auth.method !== 'none') {
         params.context = 'edit';
       }
       

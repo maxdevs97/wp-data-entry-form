@@ -1,0 +1,6 @@
+[2026-02-20T22:12:33.214Z] [INFO] Starting site cataloging (mode: authenticated)...
+[2026-02-20T22:12:33.214Z] [INFO] Cataloging posts...
+[2026-02-20T22:12:35.334Z] [ERROR] GET request failed: /wp-json/wp/v2/posts | {"error":"Request failed with status code 400","status":400}
+[2026-02-20T22:12:35.335Z] [SUCCESS] Found 9 posts
+[2026-02-20T22:12:35.336Z] [SUCCESS] Catalog complete: 9 items found
+[2026-02-20T22:12:35.336Z] [INFO] Manifest saved to: content-snapshots/source-site-manifest.json

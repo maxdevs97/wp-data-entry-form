@@ -1,0 +1,85 @@
+{
+  "source_url": "https://mybabyswims.com",
+  "extraction_mode": "authenticated",
+  "catalog_date": "2026-02-20T22:12:33.214Z",
+  "content_types": {
+    "post": {
+      "count": 9,
+      "items": [
+        {
+          "id": 1067,
+          "title": "How to Teach a Toddler to Swim | Helpful Advice For Parents",
+          "slug": "how-to-teach-a-toddler-to-swim",
+          "url": "https://mybabyswims.com/how-to-teach-a-toddler-to-swim/",
+          "status": "publish",
+          "date": "2026-01-15T14:25:24"
+        },
+        {
+          "id": 1064,
+          "title": "When Can Babies Go in the Pool &amp; Start Swimming Lessons?",
+          "slug": "when-can-babies-go-in-the-pool",
+          "url": "https://mybabyswims.com/when-can-babies-go-in-the-pool/",
+          "status": "publish",
+          "date": "2026-01-15T14:15:24"
+        },
+        {
+          "id": 839,
+          "title": "The Benefits of Off-Season ISR Classes for Your Child",
+          "slug": "the-benefits-of-off-season-isr-classes-for-your-child",
+          "url": "https://mybabyswims.com/the-benefits-of-off-season-isr-classes-for-your-child/",
+          "status": "publish",
+          "date": "2024-10-21T23:15:50"
+        },
+        {
+          "id": 743,
+          "title": "3 Reasons Why You Shouldn&#8217;t Use Swim Floaties And What To Do Instead",
+          "slug": "3-reasons-why-you-shouldnt-use-swim-floaties-and-what-to-do-instead",
+          "url": "https://mybabyswims.com/3-reasons-why-you-shouldnt-use-swim-floaties-and-what-to-do-instead/",
+          "status": "publish",
+          "date": "2024-09-18T22:39:30"
+        },
+        {
+          "id": 739,
+          "title": "ISR Skills Build a Strong Swimming Foundation",
+          "slug": "isr-skills-build-a-strong-swimming-foundation",
+          "url": "https://mybabyswims.com/isr-skills-build-a-strong-swimming-foundation/",
+          "status": "publish",
+          "date": "2024-09-18T22:25:54"
+        },
+        {
+          "id": 708,
+          "title": "Debunking Myths About ISR: Separating Fact from Fiction",
+          "slug": "debunking-myths-about-isr-separating-fact-from-fiction",
+          "url": "https://mybabyswims.com/debunking-myths-about-isr-separating-fact-from-fiction/",
+          "status": "publish",
+          "date": "2024-08-12T22:47:27"
+        },
+        {
+          "id": 683,
+          "title": "Home Practices Before Starting ISR Lessons",
+          "slug": "home-practices-before-starting-isr-lessons",
+          "url": "https://mybabyswims.com/home-practices-before-starting-isr-lessons/",
+          "status": "publish",
+          "date": "2024-07-10T20:41:52"
+        },
+        {
+          "id": 671,
+          "title": "Pool Safety Tips for Parents of Infants and Small Children",
+          "slug": "pool-safety-tips-for-parents-of-infants-and-small-children",
+          "url": "https://mybabyswims.com/pool-safety-tips-for-parents-of-infants-and-small-children/",
+          "status": "publish",
+          "date": "2024-07-10T20:19:35"
+        },
+        {
+          "id": 1,
+          "title": "ISR vs. Regular Swim Lessons for Infants",
+          "slug": "isr-vs-regular-swim-lessons-for-infants",
+          "url": "https://mybabyswims.com/isr-vs-regular-swim-lessons-for-infants/",
+          "status": "publish",
+          "date": "2024-04-12T23:16:21"
+        }
+      ]
+    }
+  },
+  "total_items": 9
+}
