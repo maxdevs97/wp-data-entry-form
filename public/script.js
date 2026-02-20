@@ -206,33 +206,65 @@ document.getElementById('password').focus();
 
 // Results Screen Management
 function showResultsScreen(jobId, formData) {
-  currentJobId = jobId;
-  
-  formScreen.classList.remove('active');
-  
-  let resultsScreen = document.getElementById('resultsScreen');
-  if (!resultsScreen) {
-    resultsScreen = createResultsScreen();
-    document.querySelector('.container').appendChild(resultsScreen);
+  try {
+    console.log('🎯 showResultsScreen called with jobId:', jobId);
+    currentJobId = jobId;
+    
+    // Hide form first
+    formScreen.classList.remove('active');
+    console.log('✅ Form screen hidden');
+    
+    // Get or create results screen
+    let resultsScreen = document.getElementById('resultsScreen');
+    if (!resultsScreen) {
+      console.log('📝 Creating results screen...');
+      resultsScreen = createResultsScreen();
+      document.querySelector('.container').appendChild(resultsScreen);
+      console.log('✅ Results screen created and appended');
+    }
+    
+    // Show results screen
+    resultsScreen.classList.add('active');
+    console.log('✅ Results screen shown');
+    
+    // Reset form
+    migrationForm.reset();
+    
+    // Update migration info (with error handling)
+    try {
+      document.getElementById('infoSource').textContent = formData.sourceUrl || '-';
+      document.getElementById('infoDestination').textContent = formData.destinationUrl || '-';
+      
+      const contentTypeParts = [];
+      if (formData.contentTypeCertainPages) {
+        contentTypeParts.push(`Certain Pages (${formData.certainPages.length})`);
+      }
+      if (formData.contentTypePostTypes) {
+        contentTypeParts.push(`Post Types (${formData.postTypes.length})`);
+      }
+      document.getElementById('infoContentType').textContent = contentTypeParts.join(' + ') || '-';
+      console.log('✅ Migration info updated');
+    } catch (infoError) {
+      console.error('⚠️ Error updating migration info:', infoError);
+      // Continue anyway - the results screen is still visible
+    }
+    
+    // Start polling (with error handling)
+    try {
+      startPolling(jobId);
+      console.log('✅ Polling started');
+    } catch (pollError) {
+      console.error('⚠️ Error starting polling:', pollError);
+      // Show error in progress section
+      document.getElementById('progressMessage').textContent = 'Error loading status. Please refresh.';
+    }
+  } catch (error) {
+    console.error('❌ CRITICAL ERROR in showResultsScreen:', error);
+    // Try to show an error message to the user
+    alert(`Error showing results screen: ${error.message}\n\nPlease refresh the page and check the submission status.`);
+    // Try to show form screen again
+    formScreen.classList.add('active');
   }
-  
-  resultsScreen.classList.add('active');
-  migrationForm.reset();
-  
-  // Update migration info
-  document.getElementById('infoSource').textContent = formData.sourceUrl;
-  document.getElementById('infoDestination').textContent = formData.destinationUrl;
-  
-  const contentTypeParts = [];
-  if (formData.contentTypeCertainPages) {
-    contentTypeParts.push(`Certain Pages (${formData.certainPages.length})`);
-  }
-  if (formData.contentTypePostTypes) {
-    contentTypeParts.push(`Post Types (${formData.postTypes.length})`);
-  }
-  document.getElementById('infoContentType').textContent = contentTypeParts.join(' + ');
-  
-  startPolling(jobId);
 }
 
 function createResultsScreen() {
@@ -413,25 +445,51 @@ function createResultsScreen() {
 }
 
 function startPolling(jobId) {
-  pollJobStatus(jobId);
+  console.log('🔄 Starting polling for job:', jobId);
   
-  if (pollingInterval) clearInterval(pollingInterval);
-  pollingInterval = setInterval(() => pollJobStatus(jobId), 3000);
+  // Initial poll
+  pollJobStatus(jobId).catch(error => {
+    console.error('Error in initial poll:', error);
+  });
+  
+  // Clear any existing interval
+  if (pollingInterval) {
+    clearInterval(pollingInterval);
+    pollingInterval = null;
+  }
+  
+  // Set up recurring poll
+  pollingInterval = setInterval(() => {
+    pollJobStatus(jobId).catch(error => {
+      console.error('Error in polling interval:', error);
+    });
+  }, 3000);
+  
+  console.log('✅ Polling interval set (every 3 seconds)');
 }
 
 async function pollJobStatus(jobId) {
   try {
+    console.log('📡 Polling job status:', jobId);
     const response = await fetch(`/api/job-status/${jobId}`);
     
     if (!response.ok) {
-      console.error('Failed to fetch job status');
+      console.error('❌ Failed to fetch job status. Status:', response.status);
+      if (response.status === 404) {
+        console.error('Job not found on server');
+        document.getElementById('progressMessage').textContent = 'Job not found. Please contact support.';
+      }
       return;
     }
     
     const job = await response.json();
+    console.log('✅ Job status received:', job.status, '| Progress:', job.progress?.percentComplete + '%');
+    
     updateResultsUI(job);
     
+    // Stop polling if job is complete or failed
     if (job.status === 'complete' || job.status === 'failed') {
+      console.log('🏁 Job finished. Stopping polling.');
       if (pollingInterval) {
         clearInterval(pollingInterval);
         pollingInterval = null;
@@ -439,29 +497,53 @@ async function pollJobStatus(jobId) {
     }
     
   } catch (error) {
-    console.error('Polling error:', error);
+    console.error('❌ Polling error:', error);
+    // Don't stop polling on error - might be temporary network issue
+    document.getElementById('progressMessage').textContent = 'Connection error. Retrying...';
   }
 }
 
 function updateResultsUI(job) {
-  const statusBadge = document.getElementById('infoStatus');
-  statusBadge.textContent = job.status.charAt(0).toUpperCase() + job.status.slice(1);
-  statusBadge.className = `status-badge status-${job.status}`;
-  
-  const progress = job.progress || {};
-  document.getElementById('progressFill').style.width = `${progress.percentComplete || 0}%`;
-  document.getElementById('progressPercent').textContent = `${progress.percentComplete || 0}%`;
-  document.getElementById('progressMessage').textContent = progress.message || 'Processing...';
-  document.getElementById('progressItems').textContent = 
-    `${progress.itemsProcessed || 0} / ${progress.itemsTotal || 0} items`;
-  document.getElementById('progressStage').textContent = progress.stage || '-';
-  
-  if (job.status === 'complete' && job.results) {
-    showResults(job);
-  }
-  
-  if (job.status === 'failed') {
-    showError(job);
+  try {
+    console.log('🔄 Updating results UI for job:', job.jobId);
+    
+    // Update status badge
+    const statusBadge = document.getElementById('infoStatus');
+    if (statusBadge) {
+      statusBadge.textContent = job.status.charAt(0).toUpperCase() + job.status.slice(1);
+      statusBadge.className = `status-badge status-${job.status}`;
+    }
+    
+    // Update progress
+    const progress = job.progress || {};
+    const progressFill = document.getElementById('progressFill');
+    const progressPercent = document.getElementById('progressPercent');
+    const progressMessage = document.getElementById('progressMessage');
+    const progressItems = document.getElementById('progressItems');
+    const progressStage = document.getElementById('progressStage');
+    
+    if (progressFill) progressFill.style.width = `${progress.percentComplete || 0}%`;
+    if (progressPercent) progressPercent.textContent = `${progress.percentComplete || 0}%`;
+    if (progressMessage) progressMessage.textContent = progress.message || 'Processing...';
+    if (progressItems) progressItems.textContent = 
+      `${progress.itemsProcessed || 0} / ${progress.itemsTotal || 0} items`;
+    if (progressStage) progressStage.textContent = progress.stage || '-';
+    
+    console.log('✅ Progress UI updated:', progress.percentComplete + '%', '-', progress.message);
+    
+    // Handle completion
+    if (job.status === 'complete' && job.results) {
+      console.log('✅ Job complete! Showing results...');
+      showResults(job);
+    }
+    
+    // Handle failure
+    if (job.status === 'failed') {
+      console.error('❌ Job failed! Showing errors...');
+      showError(job);
+    }
+  } catch (error) {
+    console.error('❌ Error in updateResultsUI:', error);
   }
 }
 
