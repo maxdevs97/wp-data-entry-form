@@ -1,18 +1,148 @@
+const fs = require('fs-extra');
+const path = require('path');
 const jobManager = require('./jobs');
+const Logger = require('../utils/logger');
+const ContentExtractor = require('../core/extract');
+const ContentTransformer = require('../core/transform');
+const ContentInserter = require('../core/insert');
+const ContentVerifier = require('../core/verify');
+const BackupManager = require('../lib/backup');
 
 /**
- * Migration Job Processor
- * Simulates the migration process with realistic stages and progress updates
+ * Real WordPress Migration Processor
+ * Integrates the full migration framework with the job management system
  */
 
 const sleep = (ms) => new Promise(resolve => setTimeout(resolve, ms));
 
 /**
- * Process a migration job through all stages
+ * Convert form submission data to migration framework config
+ */
+function createMigrationConfig(submissionData, jobId) {
+  const config = {
+    project_name: `migration-${jobId}`,
+    
+    // Source WordPress site
+    source: {
+      url: submissionData.sourceUrl.replace(/\/$/, ''), // Remove trailing slash
+      rest_endpoint: '/wp-json/wp/v2',
+      auth: {
+        method: 'application_password',
+        username: submissionData.wpUsername,
+        password: submissionData.wpPassword
+      }
+    },
+    
+    // Destination WordPress site
+    destination: {
+      url: submissionData.destinationUrl.replace(/\/$/, ''),
+      rest_endpoint: '/wp-json/wp/v2',
+      auth: {
+        method: 'application_password',
+        username: submissionData.wpUsername,
+        password: submissionData.wpPassword
+      }
+    },
+    
+    // Migration settings
+    migration_settings: {
+      // Content types to migrate
+      content_types: [],
+      
+      // Specific pages/posts if provided
+      specific_items: {
+        pages: [],
+        posts: []
+      },
+      
+      // Preservation settings from form
+      preserve: submissionData.preserve || {},
+      
+      // Resume capability
+      resume_from_checkpoint: true,
+      
+      // Create backups by default
+      create_backup: true
+    },
+    
+    // Backup settings
+    backup_settings: {
+      create_backup: true,
+      backup_directory: `./backups/${jobId}`,
+      include_database: true,
+      include_media: true
+    },
+    
+    // Working directories
+    directories: {
+      snapshots: `./content-snapshots/${jobId}`,
+      transformed: `./transformed-content/${jobId}`,
+      logs: `./logs/${jobId}`,
+      backups: `./backups/${jobId}`,
+      qa_reports: `./qa-reports/${jobId}`
+    }
+  };
+  
+  // Determine content types based on form data
+  if (submissionData.contentTypeCertainPages) {
+    // If certain pages specified, extract specific pages
+    config.migration_settings.content_types.push('page');
+    
+    // Parse page paths/IDs from the certainPages array
+    if (submissionData.certainPages && submissionData.certainPages.length > 0) {
+      submissionData.certainPages.forEach(pagePath => {
+        // Check if it's a numeric ID or a slug/path
+        const trimmedPath = pagePath.trim();
+        if (/^\d+$/.test(trimmedPath)) {
+          // It's an ID
+          config.migration_settings.specific_items.pages.push({
+            id: parseInt(trimmedPath)
+          });
+        } else {
+          // It's a path or slug
+          const cleanPath = trimmedPath.replace(/^\/+|\/+$/g, '');
+          config.migration_settings.specific_items.pages.push({
+            slug: cleanPath
+          });
+        }
+      });
+    }
+  }
+  
+  if (submissionData.contentTypePostTypes) {
+    // Add specified post types
+    if (submissionData.postTypes && submissionData.postTypes.length > 0) {
+      submissionData.postTypes.forEach(postType => {
+        const cleanType = postType.trim().toLowerCase();
+        if (cleanType && !config.migration_settings.content_types.includes(cleanType)) {
+          config.migration_settings.content_types.push(cleanType);
+        }
+      });
+    }
+  }
+  
+  // Default to 'post' and 'page' if nothing specified
+  if (config.migration_settings.content_types.length === 0) {
+    config.migration_settings.content_types = ['post', 'page'];
+  }
+  
+  // Create working directories
+  Object.values(config.directories).forEach(dir => {
+    fs.ensureDirSync(dir);
+  });
+  
+  return config;
+}
+
+/**
+ * Process a migration job through all stages using real migration framework
  */
 async function processJob(jobId) {
+  let logger = null;
+  let config = null;
+  
   try {
-    console.log(`🚀 Starting job processing for ${jobId}`);
+    console.log(`🚀 Starting real WordPress migration for job ${jobId}`);
     
     // Get job details
     const job = await jobManager.getJob(jobId);
@@ -20,227 +150,238 @@ async function processJob(jobId) {
       throw new Error(`Job not found: ${jobId}`);
     }
     
+    // Create migration config from submission data
+    config = createMigrationConfig(job.submissionData, jobId);
+    
+    // Initialize logger
+    logger = new Logger(config.directories.logs);
+    logger.info('=================================');
+    logger.info('WordPress Migration Started');
+    logger.info('=================================');
+    logger.info(`Job ID: ${jobId}`);
+    logger.info(`Source: ${config.source.url}`);
+    logger.info(`Destination: ${config.destination.url}`);
+    logger.info(`Content Types: ${config.migration_settings.content_types.join(', ')}`);
+    logger.info('=================================');
+    
+    // Initialize migration framework components
+    const extractor = new ContentExtractor(config, logger);
+    const transformer = new ContentTransformer(config, logger);
+    const inserter = new ContentInserter(config, logger);
+    const verifier = new ContentVerifier(config, logger);
+    const backupManager = new BackupManager(config, logger);
+    
     // Update job to running
     await jobManager.updateJob(jobId, { status: 'running' });
-    console.log(`✅ Job ${jobId} status set to 'running'`);
+    logger.info('Job status set to running');
+    
+    // Stage 0: Backup (before any writes)
+    let backupMetadata = null;
+    try {
+      await jobManager.updateProgress(jobId, {
+        stage: 'backup',
+        message: 'Creating backup before migration...',
+        percentComplete: 5
+      });
+      
+      logger.info('\n💾 STAGE 0: PRE-MIGRATION BACKUP');
+      backupMetadata = await backupManager.createBackup();
+      
+      if (backupMetadata && backupMetadata.success) {
+        logger.success('✅ Backup created successfully');
+        await jobManager.setBackupInfo(jobId, {
+          timestamp: backupMetadata.timestamp,
+          directory: backupMetadata.directory,
+          database: backupMetadata.database,
+          files: backupMetadata.files
+        });
+      } else {
+        logger.warn('⚠️ Backup completed with warnings');
+      }
+    } catch (backupError) {
+      logger.warn('⚠️ Backup failed, continuing with migration', { error: backupError.message });
+      // Don't fail the job - backup is optional
+    }
     
     // Stage 1: Extract data from source
-    await extractData(jobId, job);
+    await jobManager.updateProgress(jobId, {
+      stage: 'extracting',
+      message: 'Cataloging source site...',
+      percentComplete: 10
+    });
     
-    // Stage 2: Transform/map content
-    await transformData(jobId, job);
+    logger.info('\n📥 STAGE 1: EXTRACTION');
+    const manifest = await extractor.catalogSite();
+    const itemsTotal = manifest.total_items || 0;
     
-    // Stage 3: Insert into destination
-    await insertData(jobId, job);
+    logger.info(`Found ${itemsTotal} items to migrate`);
+    await jobManager.updateProgress(jobId, {
+      stage: 'extracting',
+      message: `Extracting ${itemsTotal} items from source...`,
+      percentComplete: 15,
+      itemsTotal
+    });
     
-    // Stage 4: Verify migration
-    await verifyMigration(jobId, job);
+    const extractResults = await extractor.extractAll();
+    const extractedCount = extractResults.filter(r => r.success).length;
+    
+    logger.success(`✅ Extracted ${extractedCount}/${itemsTotal} items`);
+    await jobManager.updateProgress(jobId, {
+      stage: 'extracting',
+      message: `Extracted ${extractedCount} items successfully`,
+      percentComplete: 30,
+      itemsProcessed: extractedCount
+    });
+    
+    if (extractedCount === 0) {
+      throw new Error('No content was extracted from source site. Please check your credentials and content filters.');
+    }
+    
+    // Stage 2: Transform content
+    await jobManager.updateProgress(jobId, {
+      stage: 'transforming',
+      message: 'Transforming content structure...',
+      percentComplete: 35
+    });
+    
+    logger.info('\n🔄 STAGE 2: TRANSFORMATION');
+    const transformResults = await transformer.transformAll();
+    const transformedCount = transformResults.filter(r => r.success).length;
+    
+    logger.success(`✅ Transformed ${transformedCount}/${extractedCount} items`);
+    await jobManager.updateProgress(jobId, {
+      stage: 'transforming',
+      message: `Transformed ${transformedCount} items`,
+      percentComplete: 45
+    });
+    
+    // Stage 3: Insert into destination (with progress updates)
+    logger.info('\n📤 STAGE 3: INSERTION');
+    
+    // Get list of transformed files
+    const transformedFiles = fs.readdirSync(config.directories.transformed)
+      .filter(f => f.endsWith('.json'))
+      .map(f => path.join(config.directories.transformed, f));
+    
+    const insertTotal = transformedFiles.length;
+    let insertedCount = 0;
+    const migratedPosts = [];
+    
+    for (let i = 0; i < transformedFiles.length; i++) {
+      const filePath = transformedFiles[i];
+      const progressPercent = 45 + Math.floor((i / insertTotal) * 35); // 45% -> 80%
+      
+      await jobManager.updateProgress(jobId, {
+        stage: 'inserting',
+        message: `Inserting item ${i + 1} of ${insertTotal}...`,
+        percentComplete: progressPercent,
+        itemsProcessed: i
+      });
+      
+      try {
+        const result = await inserter.insertContent(filePath);
+        
+        if (result && result.success) {
+          insertedCount++;
+          
+          // Read the transformed content to get original details
+          const transformed = fs.readJsonSync(filePath);
+          
+          migratedPosts.push({
+            title: transformed.title || 'Untitled',
+            sourceUrl: transformed.source_url || config.source.url,
+            destinationUrl: result.url || config.destination.url,
+            status: 'success'
+          });
+        }
+      } catch (insertError) {
+        logger.error(`Failed to insert ${path.basename(filePath)}`, { error: insertError.message });
+      }
+    }
+    
+    logger.success(`✅ Inserted ${insertedCount}/${insertTotal} items`);
+    await jobManager.updateProgress(jobId, {
+      stage: 'inserting',
+      message: `Inserted ${insertedCount} items successfully`,
+      percentComplete: 80,
+      itemsProcessed: insertedCount
+    });
+    
+    // Stage 4: Verify migration (QA checks)
+    await jobManager.updateProgress(jobId, {
+      stage: 'verifying',
+      message: 'Running quality assurance checks...',
+      percentComplete: 85
+    });
+    
+    logger.info('\n✅ STAGE 4: VERIFICATION');
+    
+    try {
+      const verifyResults = await verifier.verifyAll();
+      const verifiedCount = verifyResults.filter(r => r.success).length;
+      
+      logger.success(`✅ Verified ${verifiedCount}/${insertedCount} items`);
+      await jobManager.updateProgress(jobId, {
+        stage: 'verifying',
+        message: `Verified ${verifiedCount} items`,
+        percentComplete: 95
+      });
+    } catch (verifyError) {
+      logger.warn('⚠️ Verification completed with errors', { error: verifyError.message });
+      // Don't fail the job - verification is supplementary
+    }
     
     // Stage 5: Complete with results
-    await completeWithResults(jobId, job);
+    logger.info('\n🎉 STAGE 5: COMPLETION');
+    
+    const startTime = new Date(job.createdAt);
+    const endTime = new Date();
+    const durationMs = endTime - startTime;
+    const durationSeconds = Math.floor(durationMs / 1000);
+    const durationMinutes = Math.floor(durationSeconds / 60);
+    const remainingSeconds = durationSeconds % 60;
+    const duration = durationMinutes > 0 
+      ? `${durationMinutes}m ${remainingSeconds}s`
+      : `${durationSeconds}s`;
+    
+    const results = {
+      totalMigrated: insertedCount,
+      totalFailed: itemsTotal - insertedCount,
+      duration,
+      migratedPosts: migratedPosts,
+      completedAt: endTime.toISOString(),
+      logs: {
+        logFile: logger.logFile,
+        backupDirectory: config.directories.backups
+      }
+    };
+    
+    await jobManager.completeJob(jobId, results);
+    
+    logger.success('=================================');
+    logger.success('✅ MIGRATION COMPLETED SUCCESSFULLY');
+    logger.success('=================================');
+    logger.success(`Total Items Migrated: ${insertedCount}/${itemsTotal}`);
+    logger.success(`Duration: ${duration}`);
+    logger.success(`Log File: ${logger.logFile}`);
+    logger.success('=================================');
     
     console.log(`✅ Job ${jobId} completed successfully`);
     
   } catch (error) {
     console.error(`❌ Job ${jobId} failed:`, error);
+    
+    if (logger) {
+      logger.error('=================================');
+      logger.error('❌ MIGRATION FAILED');
+      logger.error('=================================');
+      logger.error(`Error: ${error.message}`);
+      logger.error(`Stack: ${error.stack}`);
+      logger.error('=================================');
+    }
+    
     await jobManager.failJob(jobId, error);
   }
-}
-
-/**
- * Stage 1: Extract data from source
- */
-async function extractData(jobId, job) {
-  console.log(`[${jobId}] Stage 1: Extracting data from source...`);
-  
-  await jobManager.updateProgress(jobId, {
-    stage: 'extracting',
-    message: 'Extracting content from source site...',
-    percentComplete: 10
-  });
-  
-  // Simulate extraction time (2-4 seconds)
-  await sleep(2000 + Math.random() * 2000);
-  
-  // Determine item count based on content type
-  const { submissionData } = job;
-  let itemsTotal = 0;
-  
-  if (submissionData.contentTypeCertainPages && submissionData.certainPages) {
-    itemsTotal += submissionData.certainPages.length;
-  }
-  if (submissionData.contentTypePostTypes && submissionData.postTypes) {
-    // Estimate 5-15 posts per post type
-    itemsTotal += submissionData.postTypes.length * (5 + Math.floor(Math.random() * 10));
-  }
-  
-  // Default to at least 5 items
-  if (itemsTotal === 0) itemsTotal = 5;
-  
-  await jobManager.updateProgress(jobId, {
-    stage: 'extracting',
-    message: `Found ${itemsTotal} items to migrate`,
-    percentComplete: 20,
-    itemsTotal
-  });
-  
-  console.log(`[${jobId}] ✅ Extraction complete: ${itemsTotal} items found`);
-  await sleep(1000);
-}
-
-/**
- * Stage 2: Transform/map content
- */
-async function transformData(jobId, job) {
-  console.log(`[${jobId}] Stage 2: Transforming content...`);
-  
-  await jobManager.updateProgress(jobId, {
-    stage: 'transforming',
-    message: 'Mapping content structure and preserving settings...',
-    percentComplete: 30
-  });
-  
-  // Simulate transformation time
-  await sleep(2000 + Math.random() * 2000);
-  
-  await jobManager.updateProgress(jobId, {
-    stage: 'transforming',
-    message: 'Content transformation complete',
-    percentComplete: 40
-  });
-  
-  console.log(`[${jobId}] ✅ Transformation complete`);
-  await sleep(1000);
-}
-
-/**
- * Stage 3: Insert into destination (with progress updates)
- */
-async function insertData(jobId, job) {
-  console.log(`[${jobId}] Stage 3: Inserting data into destination...`);
-  
-  const currentJob = await jobManager.getJob(jobId);
-  const { itemsTotal } = currentJob.progress;
-  
-  await jobManager.updateProgress(jobId, {
-    stage: 'inserting',
-    message: 'Beginning content insertion...',
-    percentComplete: 45,
-    itemsProcessed: 0
-  });
-  
-  // Simulate processing items one by one with progress updates
-  for (let i = 1; i <= itemsTotal; i++) {
-    // Calculate progress (45% -> 85% during insertion)
-    const progressPercent = 45 + Math.floor((i / itemsTotal) * 40);
-    
-    await jobManager.updateProgress(jobId, {
-      stage: 'inserting',
-      message: `Inserting item ${i} of ${itemsTotal}...`,
-      percentComplete: progressPercent,
-      itemsProcessed: i
-    });
-    
-    // Simulate time per item (0.5-1.5 seconds)
-    await sleep(500 + Math.random() * 1000);
-  }
-  
-  console.log(`[${jobId}] ✅ Insertion complete: ${itemsTotal} items inserted`);
-  await sleep(500);
-}
-
-/**
- * Stage 4: Verify migration
- */
-async function verifyMigration(jobId, job) {
-  console.log(`[${jobId}] Stage 4: Verifying migration...`);
-  
-  await jobManager.updateProgress(jobId, {
-    stage: 'verifying',
-    message: 'Verifying all content was migrated successfully...',
-    percentComplete: 90
-  });
-  
-  // Simulate verification time
-  await sleep(2000 + Math.random() * 2000);
-  
-  await jobManager.updateProgress(jobId, {
-    stage: 'verifying',
-    message: 'Verification complete',
-    percentComplete: 95
-  });
-  
-  console.log(`[${jobId}] ✅ Verification complete`);
-  await sleep(500);
-}
-
-/**
- * Stage 5: Complete with results
- */
-async function completeWithResults(jobId, job) {
-  console.log(`[${jobId}] Stage 5: Finalizing results...`);
-  
-  const currentJob = await jobManager.getJob(jobId);
-  const { itemsTotal, itemsProcessed } = currentJob.progress;
-  const { submissionData } = currentJob;
-  
-  // Generate mock results based on migrated items
-  const migratedPosts = [];
-  
-  // If certain pages were specified, use those
-  if (submissionData.certainPages && submissionData.certainPages.length > 0) {
-    submissionData.certainPages.forEach((pagePath, index) => {
-      migratedPosts.push({
-        title: pagePath.split('/').pop() || `Page ${index + 1}`,
-        sourceUrl: `${submissionData.sourceUrl}${pagePath}`,
-        destinationUrl: `${submissionData.destinationUrl}${pagePath}`
-      });
-    });
-  }
-  
-  // Add some post type items
-  if (submissionData.postTypes && submissionData.postTypes.length > 0) {
-    const remainingItems = itemsTotal - migratedPosts.length;
-    for (let i = 0; i < remainingItems; i++) {
-      const postType = submissionData.postTypes[i % submissionData.postTypes.length];
-      migratedPosts.push({
-        title: `${postType.charAt(0).toUpperCase() + postType.slice(1)} ${i + 1}`,
-        sourceUrl: `${submissionData.sourceUrl}/${postType}/${i + 1}`,
-        destinationUrl: `${submissionData.destinationUrl}/${postType}/${i + 1}`
-      });
-    }
-  }
-  
-  // Calculate duration
-  const startTime = new Date(currentJob.createdAt);
-  const endTime = new Date();
-  const durationMs = endTime - startTime;
-  const durationSeconds = Math.floor(durationMs / 1000);
-  const durationMinutes = Math.floor(durationSeconds / 60);
-  const remainingSeconds = durationSeconds % 60;
-  const duration = durationMinutes > 0 
-    ? `${durationMinutes}m ${remainingSeconds}s`
-    : `${durationSeconds}s`;
-  
-  const results = {
-    totalMigrated: itemsProcessed || itemsTotal,
-    totalFailed: 0,
-    duration,
-    migratedPosts: migratedPosts.slice(0, itemsTotal), // Cap at itemsTotal
-    completedAt: endTime.toISOString()
-  };
-  
-  // Create backup info (simulated)
-  const backupInfo = {
-    timestamp: new Date().toISOString(),
-    directory: `/backups/${jobId}`,
-    message: 'Backup created before migration (simulated for demo)'
-  };
-  
-  await jobManager.setBackupInfo(jobId, backupInfo);
-  await jobManager.completeJob(jobId, results);
-  
-  console.log(`[${jobId}] ✅ Job completed with ${results.totalMigrated} items migrated in ${duration}`);
 }
 
 module.exports = {
