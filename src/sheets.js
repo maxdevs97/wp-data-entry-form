@@ -82,10 +82,10 @@ async function createAuditSheet(sheets) {
 
   const spreadsheetId = response.data.spreadsheetId;
 
-  // Add header row
+  // Add header row (credentials intentionally excluded for security)
   await sheets.spreadsheets.values.update({
     spreadsheetId,
-    range: 'Submissions!A1:J1',
+    range: 'Submissions!A1:K1',
     valueInputOption: 'RAW',
     requestBody: {
       values: [[
@@ -98,7 +98,8 @@ async function createAuditSheet(sheets) {
         'Priority',
         'Status',
         'Completion Time',
-        'Notes'
+        'Notes',
+        'Job ID'
       ]]
     }
   });
@@ -126,6 +127,7 @@ async function createAuditSheet(sheets) {
 
 /**
  * Append row to existing sheet
+ * NOTE: Credentials (wpUsername, wpPassword) are intentionally excluded for security
  */
 async function appendToSheet(sheets, spreadsheetId, data) {
   const row = [
@@ -138,12 +140,13 @@ async function appendToSheet(sheets, spreadsheetId, data) {
     data.priority || 'Normal',
     data.status,
     '', // Completion time (filled later)
-    data.specialInstructions || 'None'
+    data.specialInstructions || 'None',
+    data.jobId || 'N/A' // Track job ID for reference
   ];
 
   await sheets.spreadsheets.values.append({
     spreadsheetId,
-    range: 'Submissions!A:J',
+    range: 'Submissions!A:K',
     valueInputOption: 'RAW',
     insertDataOption: 'INSERT_ROWS',
     requestBody: {

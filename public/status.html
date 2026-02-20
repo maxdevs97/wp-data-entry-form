@@ -1,0 +1,202 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Job Status - WordPress Migration</title>
+  <link rel="stylesheet" href="styles.css?v=3">
+</head>
+<body>
+  <div class="container">
+    <!-- Results Screen (same as main form results) -->
+    <div id="resultsScreen" class="screen active">
+      <div class="card">
+        <div class="card-header">
+          <h1>🚀 Migration Status</h1>
+          <p id="resultsSubtitle">Tracking your migration request</p>
+        </div>
+        <div class="card-body">
+          <section class="results-section" id="migrationInfo">
+            <h2>Migration Details</h2>
+            <div class="info-grid">
+              <div class="info-item">
+                <strong>Source:</strong>
+                <span id="infoSource">-</span>
+              </div>
+              <div class="info-item">
+                <strong>Destination:</strong>
+                <span id="infoDestination">-</span>
+              </div>
+              <div class="info-item">
+                <strong>Content Type:</strong>
+                <span id="infoContentType">-</span>
+              </div>
+              <div class="info-item">
+                <strong>Status:</strong>
+                <span id="infoStatus" class="status-badge status-pending">Pending</span>
+              </div>
+            </div>
+          </section>
+
+          <section class="results-section" id="progressSection">
+            <h2>Progress</h2>
+            <div class="progress-container">
+              <div class="progress-bar">
+                <div id="progressFill" class="progress-fill" style="width: 0%"></div>
+              </div>
+              <div class="progress-text">
+                <span id="progressPercent">0%</span>
+                <span id="progressMessage">Initializing...</span>
+              </div>
+            </div>
+            <div class="progress-details">
+              <span id="progressItems">0 / 0 items</span>
+              <span id="progressStage">-</span>
+            </div>
+          </section>
+
+          <section class="results-section" id="resultsTableSection" style="display: none;">
+            <h2>Migration Results</h2>
+            <div class="results-summary" id="resultsSummary"></div>
+            <div class="table-wrapper">
+              <table class="results-table">
+                <thead>
+                  <tr>
+                    <th>Title</th>
+                    <th>Source URL</th>
+                    <th>Destination URL</th>
+                    <th>Status</th>
+                  </tr>
+                </thead>
+                <tbody id="resultsTableBody">
+                </tbody>
+              </table>
+            </div>
+          </section>
+
+          <section class="results-section" id="backupSection" style="display: none;">
+            <h2>🔄 Backup & Restore</h2>
+            <div class="backup-info">
+              <p>A backup was created before the migration. If you need to rollback these changes, contact support with this job ID.</p>
+              <div class="backup-details">
+                <div><strong>Job ID:</strong> <span id="jobIdDisplay">-</span></div>
+                <div><strong>Backup Timestamp:</strong> <span id="backupTimestamp">-</span></div>
+                <div><strong>Backup Location:</strong> <span id="backupLocation">-</span></div>
+              </div>
+            </div>
+          </section>
+
+          <section class="results-section error-section" id="errorSection" style="display: none;">
+            <h2>❌ Migration Failed</h2>
+            <div id="errorDetails" class="error-details"></div>
+          </section>
+
+          <section class="results-section" id="feedbackSection" style="display: none;">
+            <h2>📣 Report an Issue</h2>
+            <p>Found something wrong with the migration results? Let us know!</p>
+            <button id="feedbackButton" class="btn btn-accent">
+              Report Issue / Give Feedback
+            </button>
+          </section>
+
+          <div class="form-actions">
+            <a href="/" class="btn btn-secondary">
+              Submit New Request
+            </a>
+            <button id="refreshButton" class="btn btn-secondary">
+              Refresh Status
+            </button>
+            <button id="copyLinkButton" class="btn btn-secondary">
+              📋 Copy Share Link
+            </button>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- 404 Screen (shown when job not found) -->
+    <div id="notFoundScreen" class="screen" style="display: none;">
+      <div class="card">
+        <div class="card-header">
+          <h1>❌ Job Not Found</h1>
+          <p>The requested job could not be found</p>
+        </div>
+        <div class="card-body">
+          <p style="text-align: center; color: var(--text-secondary); margin: 32px 0;">
+            The job ID you're looking for doesn't exist or may have expired.<br>
+            Please check the URL and try again.
+          </p>
+          <div class="form-actions" style="justify-content: center;">
+            <a href="/" class="btn btn-primary">
+              Return to Home
+            </a>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Feedback Modal -->
+    <div id="feedbackModal" class="modal">
+      <div class="modal-content">
+        <div class="modal-header">
+          <h2>📣 Report an Issue</h2>
+          <button class="modal-close" id="closeFeedbackModal">&times;</button>
+        </div>
+        <div class="modal-body">
+          <form id="feedbackForm">
+            <div class="form-group">
+              <label for="feedbackCategory">Issue Category *</label>
+              <select id="feedbackCategory" name="feedbackCategory" required>
+                <option value="">Select a category...</option>
+                <option value="wrong_label">Wrong post type label</option>
+                <option value="missing_data">Missing data / content</option>
+                <option value="incorrect_mapping">Incorrect mapping</option>
+                <option value="broken_link">Broken link or URL</option>
+                <option value="formatting_issue">Formatting issue</option>
+                <option value="other">Other issue</option>
+              </select>
+            </div>
+
+            <div class="form-group">
+              <label for="feedbackItemReference">Which item has the issue? (optional)</label>
+              <input 
+                type="text" 
+                id="feedbackItemReference" 
+                name="feedbackItemReference" 
+                placeholder="e.g., 'About Us page' or post ID"
+              >
+              <small>Help us identify the specific post, page, or content</small>
+            </div>
+
+            <div class="form-group">
+              <label for="feedbackMessage">Describe the issue *</label>
+              <textarea 
+                id="feedbackMessage" 
+                name="feedbackMessage" 
+                rows="6"
+                placeholder="Please describe what's wrong or what you expected..."
+                required
+              ></textarea>
+            </div>
+
+            <div class="form-actions">
+              <button type="button" class="btn btn-secondary" id="cancelFeedback">
+                Cancel
+              </button>
+              <button type="submit" class="btn btn-primary">
+                <span class="btn-text">Submit Feedback</span>
+                <span class="btn-loader" style="display: none;">●●●</span>
+              </button>
+            </div>
+
+            <div id="feedbackError" class="error-message" style="display: none;"></div>
+            <div id="feedbackSuccess" class="success-message" style="display: none;"></div>
+          </form>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <script src="status.js?v=1"></script>
+</body>
+</html>

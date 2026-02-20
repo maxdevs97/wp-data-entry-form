@@ -210,6 +210,10 @@ function showResultsScreen(jobId, formData) {
     console.log('🎯 showResultsScreen called with jobId:', jobId);
     currentJobId = jobId;
     
+    // Update URL to shareable status link (without page reload)
+    const statusUrl = `${window.location.origin}/status?jobId=${jobId}`;
+    window.history.pushState({ jobId }, '', statusUrl);
+    
     // Hide form first
     formScreen.classList.remove('active');
     console.log('✅ Form screen hidden');
@@ -378,6 +382,9 @@ function createResultsScreen() {
           </button>
           <button id="refreshButton" class="btn btn-secondary">
             Refresh Status
+          </button>
+          <button id="copyLinkButton" class="btn btn-secondary">
+            📋 Copy Share Link
           </button>
         </div>
       </div>
@@ -628,6 +635,21 @@ function setupResultsButtons() {
       if (currentJobId) {
         pollJobStatus(currentJobId);
       }
+    }
+    
+    if (e.target.id === 'copyLinkButton' || e.target.closest('#copyLinkButton')) {
+      const statusUrl = `${window.location.origin}/status?jobId=${currentJobId}`;
+      navigator.clipboard.writeText(statusUrl).then(() => {
+        const btn = document.getElementById('copyLinkButton');
+        const originalText = btn.textContent;
+        btn.textContent = '✅ Copied!';
+        setTimeout(() => {
+          btn.textContent = originalText;
+        }, 2000);
+      }).catch(err => {
+        console.error('Failed to copy:', err);
+        alert('Failed to copy link. Please copy manually from the address bar.');
+      });
     }
     
     if (e.target.id === 'restoreButton' || e.target.closest('#restoreButton')) {

@@ -34,6 +34,11 @@ app.use(bodyParser.urlencoded({ extended: true }));
 // Serve static files
 app.use(express.static(path.join(__dirname, '../public')));
 
+// Status page route (serves status.html for /status URLs)
+app.get('/status', (req, res) => {
+  res.sendFile(path.join(__dirname, '../public/status.html'));
+});
+
 // Rate limiting: 3 requests per IP per day
 const submissionLimiter = rateLimit({
   windowMs: 24 * 60 * 60 * 1000, // 24 hours
@@ -278,8 +283,9 @@ app.post('/api/submit', submissionLimiter, checkPassword, async (req, res) => {
     // Add to Kit's backlog with job ID
     await addToKitBacklog({ ...submissionData, jobId: job.jobId });
 
-    // Log to Google Sheet
-    await logToGoogleSheet({ ...submissionData, jobId: job.jobId });
+    // Log to Google Sheet (exclude credentials for security)
+    const { wpUsername, wpPassword, ...safeSubmissionData } = submissionData;
+    await logToGoogleSheet({ ...safeSubmissionData, jobId: job.jobId });
 
     // Note: Email notifications removed - using real-time polling instead
 
