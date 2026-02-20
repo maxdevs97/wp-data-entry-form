@@ -221,6 +221,11 @@ function showResultsScreen(jobId, formData) {
       resultsScreen = createResultsScreen();
       document.querySelector('.container').appendChild(resultsScreen);
       console.log('✅ Results screen created and appended');
+      
+      // Setup event listeners AFTER appending to DOM
+      setupResultsButtons();
+      setupFeedbackModal();
+      console.log('✅ Event listeners attached');
     }
     
     // Show results screen
@@ -437,9 +442,6 @@ function createResultsScreen() {
       </div>
     </div>
   `;
-  
-  setupResultsButtons();
-  setupFeedbackModal();
   
   return screen;
 }
