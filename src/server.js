@@ -9,6 +9,7 @@ const { validateRequest, testWPConnection } = require('./validators');
 const { addToKitBacklog } = require('./backlog');
 const { logToGoogleSheet } = require('./sheets');
 const { sendConfirmationEmail } = require('./email');
+const { logFeedbackToSheet, sendFeedbackNotificationEmail } = require('./feedback');
 const jobManager = require('./jobs');
 
 const app = express();
@@ -97,6 +98,54 @@ app.post('/api/update-job/:jobId', async (req, res) => {
   } catch (error) {
     console.error('Job update error:', error);
     res.status(500).json({ error: 'Failed to update job' });
+  }
+});
+
+// Feedback submission endpoint
+app.post('/api/feedback', async (req, res) => {
+  try {
+    const { jobId, category, itemReference, message, requesterEmail, timestamp } = req.body;
+
+    // Validate feedback data
+    if (!jobId || !category || !message || !requesterEmail) {
+      return res.status(400).json({ error: 'Missing required feedback fields' });
+    }
+
+    if (message.length < 10) {
+      return res.status(400).json({ error: 'Feedback message must be at least 10 characters' });
+    }
+
+    const feedbackData = {
+      jobId,
+      category,
+      itemReference: itemReference || '',
+      message,
+      requesterEmail,
+      timestamp: timestamp || new Date().toISOString()
+    };
+
+    // Get job data for context in notification
+    const job = await jobManager.getJob(jobId);
+
+    // Log to Google Sheet
+    await logFeedbackToSheet(feedbackData);
+
+    // Send notification email to Max
+    await sendFeedbackNotificationEmail(feedbackData, job);
+
+    console.log(`✅ Feedback submitted for job ${jobId} by ${requesterEmail}`);
+
+    res.json({ 
+      success: true, 
+      message: 'Thank you for your feedback! The team will review it shortly.'
+    });
+
+  } catch (error) {
+    console.error('Feedback submission error:', error);
+    res.status(500).json({ 
+      error: 'Failed to submit feedback. Please try again or contact support.',
+      details: process.env.NODE_ENV === 'development' ? error.message : undefined
+    });
   }
 });
 

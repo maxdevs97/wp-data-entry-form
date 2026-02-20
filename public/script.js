@@ -370,6 +370,15 @@ function createResultsScreen() {
           <div id="errorDetails" class="error-details"></div>
         </section>
 
+        <!-- Feedback Section -->
+        <section class="results-section" id="feedbackSection" style="display: none;">
+          <h2>📣 Report an Issue</h2>
+          <p>Found something wrong with the migration results? Let us know!</p>
+          <button id="feedbackButton" class="btn btn-accent">
+            Report Issue / Give Feedback
+          </button>
+        </section>
+
         <!-- Actions -->
         <div class="form-actions">
           <button id="newRequestButton" class="btn btn-secondary">
@@ -378,6 +387,66 @@ function createResultsScreen() {
           <button id="refreshButton" class="btn btn-secondary">
             Refresh Status
           </button>
+        </div>
+      </div>
+    </div>
+
+    <!-- Feedback Modal -->
+    <div id="feedbackModal" class="modal">
+      <div class="modal-content">
+        <div class="modal-header">
+          <h2>📣 Report an Issue</h2>
+          <button class="modal-close" id="closeFeedbackModal">&times;</button>
+        </div>
+        <div class="modal-body">
+          <form id="feedbackForm">
+            <div class="form-group">
+              <label for="feedbackCategory">Issue Category *</label>
+              <select id="feedbackCategory" name="feedbackCategory" required>
+                <option value="">Select a category...</option>
+                <option value="wrong_label">Wrong post type label</option>
+                <option value="missing_data">Missing data / content</option>
+                <option value="incorrect_mapping">Incorrect mapping</option>
+                <option value="broken_link">Broken link or URL</option>
+                <option value="formatting_issue">Formatting issue</option>
+                <option value="other">Other issue</option>
+              </select>
+            </div>
+
+            <div class="form-group">
+              <label for="feedbackItemReference">Which item has the issue? (optional)</label>
+              <input 
+                type="text" 
+                id="feedbackItemReference" 
+                name="feedbackItemReference" 
+                placeholder="e.g., 'About Us page' or post ID"
+              >
+              <small>Help us identify the specific post, page, or content</small>
+            </div>
+
+            <div class="form-group">
+              <label for="feedbackMessage">Describe the issue *</label>
+              <textarea 
+                id="feedbackMessage" 
+                name="feedbackMessage" 
+                rows="6"
+                placeholder="Please describe what's wrong or what you expected..."
+                required
+              ></textarea>
+            </div>
+
+            <div class="form-actions">
+              <button type="button" class="btn btn-secondary" id="cancelFeedback">
+                Cancel
+              </button>
+              <button type="submit" class="btn btn-primary">
+                <span class="btn-text">Submit Feedback</span>
+                <span class="btn-loader" style="display: none;">●●●</span>
+              </button>
+            </div>
+
+            <div id="feedbackError" class="error-message" style="display: none;"></div>
+          </form>
         </div>
       </div>
     </div>
@@ -461,8 +530,9 @@ function showResults(job) {
   // Hide progress section
   document.getElementById('progressSection').style.display = 'none';
   
-  // Show results table
+  // Show results table and feedback section
   document.getElementById('resultsTableSection').style.display = 'block';
+  document.getElementById('feedbackSection').style.display = 'block';
   
   // Update summary
   const results = job.results;
@@ -584,3 +654,117 @@ function escapeHtml(text) {
   div.textContent = text;
   return div.innerHTML;
 }
+
+// Feedback Modal Management
+let currentFeedbackJobId = null;
+
+function setupFeedbackModal() {
+  const feedbackButton = document.getElementById('feedbackButton');
+  const feedbackModal = document.getElementById('feedbackModal');
+  const closeFeedbackModal = document.getElementById('closeFeedbackModal');
+  const cancelFeedback = document.getElementById('cancelFeedback');
+  const feedbackForm = document.getElementById('feedbackForm');
+  
+  // Open modal
+  feedbackButton.addEventListener('click', () => {
+    currentFeedbackJobId = window.currentJobId;
+    feedbackModal.style.display = 'flex';
+    setTimeout(() => feedbackModal.classList.add('active'), 10);
+    document.getElementById('feedbackCategory').focus();
+  });
+  
+  // Close modal handlers
+  const closeModal = () => {
+    feedbackModal.classList.remove('active');
+    setTimeout(() => {
+      feedbackModal.style.display = 'none';
+      feedbackForm.reset();
+      hideMessage(document.getElementById('feedbackError'));
+    }, 300);
+  };
+  
+  closeFeedbackModal.addEventListener('click', closeModal);
+  cancelFeedback.addEventListener('click', closeModal);
+  
+  // Close on outside click
+  feedbackModal.addEventListener('click', (e) => {
+    if (e.target === feedbackModal) {
+      closeModal();
+    }
+  });
+  
+  // Handle feedback form submission
+  feedbackForm.addEventListener('submit', async (e) => {
+    e.preventDefault();
+    
+    const submitBtn = feedbackForm.querySelector('button[type="submit"]');
+    submitBtn.classList.add('loading');
+    submitBtn.disabled = true;
+    hideMessage(document.getElementById('feedbackError'));
+    
+    try {
+      // Get the current job to extract requester info
+      const job = await jobManager.getJob(currentFeedbackJobId);
+      
+      const feedbackData = {
+        jobId: currentFeedbackJobId,
+        category: document.getElementById('feedbackCategory').value,
+        itemReference: document.getElementById('feedbackItemReference').value.trim(),
+        message: document.getElementById('feedbackMessage').value.trim(),
+        requesterEmail: job?.submissionData?.requesterEmail || 'unknown',
+        timestamp: new Date().toISOString()
+      };
+      
+      const response = await fetch('/api/feedback', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(feedbackData)
+      });
+      
+      const data = await response.json();
+      
+      if (response.ok && data.success) {
+        // Success! Close modal and show confirmation
+        closeModal();
+        alert('✅ Thank you! Your feedback has been submitted. The team will review it shortly.');
+      } else {
+        showMessage(
+          document.getElementById('feedbackError'), 
+          data.error || 'Failed to submit feedback. Please try again.'
+        );
+      }
+      
+    } catch (error) {
+      showMessage(
+        document.getElementById('feedbackError'), 
+        'Network error: Unable to submit feedback. Please try again.'
+      );
+    } finally {
+      submitBtn.classList.remove('loading');
+      submitBtn.disabled = false;
+    }
+  });
+}
+
+// Initialize feedback modal when results screen is created
+const originalCreateResultsScreen = createResultsScreen;
+createResultsScreen = function() {
+  const screen = originalCreateResultsScreen();
+  setTimeout(() => setupFeedbackModal(), 100);
+  return screen;
+};
+
+// Helper to get job data for feedback
+const jobManager = {
+  async getJob(jobId) {
+    try {
+      const response = await fetch(`/api/job-status/${jobId}`);
+      if (response.ok) {
+        return await response.json();
+      }
+    } catch (error) {
+      console.error('Failed to fetch job for feedback:', error);
+    }
+    return null;
+  }
+};
