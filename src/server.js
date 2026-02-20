@@ -33,16 +33,16 @@ app.use(bodyParser.urlencoded({ extended: true }));
 // Serve static files
 app.use(express.static(path.join(__dirname, '../public')));
 
-// Rate limiting: 3 requests per user per day
+// Rate limiting: 3 requests per IP per day
 const submissionLimiter = rateLimit({
   windowMs: 24 * 60 * 60 * 1000, // 24 hours
   max: 3,
-  message: { error: 'Rate limit exceeded. Maximum 3 requests per day per user.' },
+  message: { error: 'Rate limit exceeded. Maximum 3 requests per day.' },
   standardHeaders: true,
   legacyHeaders: false,
   keyGenerator: (req) => {
-    // Use email as the rate limit key
-    return req.body.requesterEmail || req.ip;
+    // Use IP address as the rate limit key
+    return req.ip;
   }
 });
 
@@ -120,7 +120,7 @@ app.post('/api/feedback', async (req, res) => {
       category,
       itemReference: itemReference || '',
       message,
-      requesterEmail,
+      requesterEmail: requesterEmail || 'team-member',
       timestamp: timestamp || new Date().toISOString()
     };
 
@@ -169,15 +169,11 @@ app.post('/api/restore/:jobId', checkPassword, async (req, res) => {
       type: 'restore_backup',
       jobId: job.jobId,
       backupTimestamp: job.backupInfo.timestamp,
-      destinationUrl: job.submissionData.destinationUrl,
-      requesterEmail: job.submissionData.requesterEmail,
-      requesterName: job.submissionData.requesterName
+      destinationUrl: job.submissionData.destinationUrl
     };
     
     await addToKitBacklog({
       ...restoreTask,
-      requesterName: `RESTORE REQUEST - ${job.submissionData.requesterName}`,
-      requesterEmail: job.submissionData.requesterEmail,
       sourceUrl: 'N/A (Restore)',
       destinationUrl: job.submissionData.destinationUrl,
       contentTypeDisplay: 'Backup Restoration',
@@ -201,8 +197,6 @@ app.post('/api/restore/:jobId', checkPassword, async (req, res) => {
 app.post('/api/submit', submissionLimiter, checkPassword, async (req, res) => {
   try {
     const {
-      requesterName,
-      requesterEmail,
       sourceUrl,
       destinationUrl,
       wpUsername,
@@ -240,8 +234,6 @@ app.post('/api/submit', submissionLimiter, checkPassword, async (req, res) => {
     
     const submissionData = {
       timestamp: new Date().toISOString(),
-      requesterName,
-      requesterEmail,
       sourceUrl,
       destinationUrl,
       wpUsername, // Will be encrypted in real deployment

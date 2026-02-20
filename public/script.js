@@ -87,8 +87,6 @@ migrationForm.addEventListener('submit', async (e) => {
     
     const formData = {
       password: accessPassword,
-      requesterName: document.getElementById('requesterName').value.trim(),
-      requesterEmail: document.getElementById('requesterEmail').value.trim(),
       sourceUrl: document.getElementById('sourceUrl').value.trim(),
       destinationUrl: document.getElementById('destinationUrl').value.trim(),
       wpUsername: document.getElementById('wpUsername').value.trim(),
@@ -137,15 +135,6 @@ migrationForm.addEventListener('submit', async (e) => {
 
 // Client-side Form Validation
 function validateForm(data) {
-  if (!data.requesterName || data.requesterName.length < 2) {
-    return { valid: false, error: 'Please enter your full name.' };
-  }
-  
-  const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
-  if (!data.requesterEmail || !emailRegex.test(data.requesterEmail)) {
-    return { valid: false, error: 'Please enter a valid email address.' };
-  }
-  
   const urlRegex = /^https?:\/\/.+/i;
   if (!data.sourceUrl || !urlRegex.test(data.sourceUrl)) {
     return { valid: false, error: 'Source URL must be a valid URL (starting with http:// or https://).' };
@@ -197,17 +186,6 @@ function hideMessage(element) {
       field.style.borderColor = 'var(--border-color)';
     }
   });
-});
-
-const emailField = document.getElementById('requesterEmail');
-emailField.addEventListener('blur', () => {
-  const value = emailField.value.trim();
-  const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
-  if (value && !emailRegex.test(value)) {
-    emailField.style.borderColor = 'var(--error)';
-  } else {
-    emailField.style.borderColor = 'var(--border-color)';
-  }
 });
 
 // Auto-focus first field
@@ -631,7 +609,7 @@ function setupFeedbackModal() {
         category: document.getElementById('feedbackCategory').value,
         itemReference: document.getElementById('feedbackItemReference').value.trim(),
         message: document.getElementById('feedbackMessage').value.trim(),
-        requesterEmail: job?.submissionData?.requesterEmail || 'unknown',
+        requesterEmail: 'team-member',
         timestamp: new Date().toISOString()
       };
       

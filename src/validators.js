@@ -5,25 +5,12 @@ const axios = require('axios');
  */
 function validateRequest(data) {
   const {
-    requesterName,
-    requesterEmail,
     sourceUrl,
     destinationUrl,
     wpUsername,
     wpPassword,
     contentType
   } = data;
-
-  // Required fields
-  if (!requesterName || requesterName.trim().length === 0) {
-    return { valid: false, error: 'Requester name is required' };
-  }
-
-  // Email validation
-  const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
-  if (!requesterEmail || !emailRegex.test(requesterEmail)) {
-    return { valid: false, error: 'Valid email address is required' };
-  }
 
   // URL validation
   const urlRegex = /^https?:\/\/.+/i;
