@@ -11,6 +11,7 @@ const { logToGoogleSheet } = require('./sheets');
 const { sendConfirmationEmail } = require('./email');
 const { logFeedbackToSheet, sendFeedbackNotificationEmail } = require('./feedback');
 const jobManager = require('./jobs');
+const { processJob } = require('./processor');
 
 const app = express();
 const PORT = process.env.PORT || 3000;
@@ -254,6 +255,11 @@ app.post('/api/submit', submissionLimiter, checkPassword, async (req, res) => {
 
     // Create job for tracking
     const job = await jobManager.createJob(submissionData);
+
+    // Start background job processing immediately (non-blocking)
+    processJob(job.jobId).catch(err => {
+      console.error(`❌ Background job ${job.jobId} processing error:`, err);
+    });
 
     // Add to Kit's backlog with job ID
     await addToKitBacklog({ ...submissionData, jobId: job.jobId });
