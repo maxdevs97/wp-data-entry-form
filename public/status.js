@@ -194,12 +194,15 @@ function showError(job) {
   document.getElementById('errorSection').style.display = 'block';
   
   const errors = job.errors || [];
-  const errorHTML = errors.map(err => `
-    <div class="error-item">
-      <div class="error-timestamp">${new Date(err.timestamp).toLocaleString()}</div>
-      <div class="error-message">${escapeHtml(err.message)}</div>
-    </div>
-  `).join('');
+  const errorHTML = errors.map(err => {
+    const timestamp = err.timestamp ? new Date(err.timestamp).toLocaleString() : 'Unknown time';
+    return `
+      <div class="error-item">
+        <div class="error-timestamp">${timestamp}</div>
+        <div class="error-message">${escapeHtml(err.message)}</div>
+      </div>
+    `;
+  }).join('');
   
   document.getElementById('errorDetails').innerHTML = errorHTML || '<p>An unknown error occurred.</p>';
 }

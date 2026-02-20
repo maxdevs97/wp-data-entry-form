@@ -25,10 +25,10 @@ class ContentTransformer {
         title: snapshot.title,
         slug: this.transformSlug(snapshot.slug),
         status: this.config.migration_settings.insert_as_draft ? 'draft' : snapshot.status,
-        date: snapshot.date,                    // NEW: Preserve publication date
-        date_gmt: snapshot.date_gmt || snapshot.date,  // NEW: Preserve GMT date
-        modified: snapshot.modified,            // NEW: Preserve modified date
-        modified_gmt: snapshot.modified_gmt || snapshot.modified,  // NEW: Preserve GMT modified
+        date: this.parseDate(snapshot.date),                    // NEW: Preserve publication date with validation
+        date_gmt: this.parseDate(snapshot.date_gmt || snapshot.date),  // NEW: Preserve GMT date with validation
+        modified: this.parseDate(snapshot.modified),            // NEW: Preserve modified date with validation
+        modified_gmt: this.parseDate(snapshot.modified_gmt || snapshot.modified),  // NEW: Preserve GMT modified with validation
         content: this.transformHTML(snapshot.html_body),
         excerpt: snapshot.excerpt,
         taxonomies: snapshot.taxonomies || {},  // NEW: Pass through full taxonomy data
@@ -63,6 +63,25 @@ class ContentTransformer {
     // Apply any slug transformations
     // Could add prefix/suffix, sanitization, etc.
     return slug;
+  }
+
+  parseDate(dateInput) {
+    // Handle missing or invalid dates
+    if (!dateInput) {
+      return new Date().toISOString();
+    }
+    
+    // Try to parse the date
+    const parsed = new Date(dateInput);
+    
+    // Check if valid
+    if (isNaN(parsed.getTime())) {
+      this.logger.warn(`Invalid date encountered: ${dateInput}, using current date`);
+      return new Date().toISOString();
+    }
+    
+    // Return ISO string
+    return parsed.toISOString();
   }
 
   transformHTML(html) {

@@ -7,6 +7,7 @@ const ContentTransformer = require('../core/transform');
 const ContentInserter = require('../core/insert');
 const ContentVerifier = require('../core/verify');
 const BackupManager = require('../lib/backup');
+const { parsePostTypes } = require('../utils/post-type-parser');
 
 /**
  * Real WordPress Migration Processor
@@ -110,13 +111,20 @@ function createMigrationConfig(submissionData, jobId) {
   }
   
   if (submissionData.contentTypePostTypes) {
-    // Add specified post types
+    // Add specified post types - parse natural language inputs
     if (submissionData.postTypes && submissionData.postTypes.length > 0) {
-      submissionData.postTypes.forEach(postType => {
-        const cleanType = postType.trim().toLowerCase();
-        if (cleanType && !config.migration_settings.content_types.includes(cleanType)) {
-          config.migration_settings.content_types.push(cleanType);
+      const parsedTypes = parsePostTypes(submissionData.postTypes);
+      
+      parsedTypes.forEach(postType => {
+        if (postType && !config.migration_settings.content_types.includes(postType)) {
+          config.migration_settings.content_types.push(postType);
         }
+      });
+      
+      // Log what was parsed for debugging
+      console.log('📝 Post type parsing:');
+      submissionData.postTypes.forEach((input, i) => {
+        console.log(`  "${input}" → "${parsedTypes[i] || 'unknown'}"`);
       });
     }
   }
@@ -234,7 +242,11 @@ async function processJob(jobId) {
     });
     
     if (extractedCount === 0) {
-      throw new Error('No content was extracted from source site. Please check your credentials and content filters.');
+      const error = new Error('No content was extracted from source site. Please check your credentials and content filters.');
+      error.timestamp = new Date().toISOString();
+      error.stage = 'extraction';
+      error.suggestion = 'Verify that the source site has content, WP credentials are correct, and content types exist.';
+      throw error;
     }
     
     // Stage 2: Transform content
