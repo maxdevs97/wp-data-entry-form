@@ -284,7 +284,9 @@ app.post('/api/submit', submissionLimiter, checkPassword, async (req, res) => {
     await addToKitBacklog({ ...submissionData, jobId: job.jobId });
 
     // Log to Google Sheet (exclude credentials for security)
-    const { wpUsername, wpPassword, ...safeSubmissionData } = submissionData;
+    const safeSubmissionData = { ...submissionData };
+    delete safeSubmissionData.wpUsername;
+    delete safeSubmissionData.wpPassword;
     await logToGoogleSheet({ ...safeSubmissionData, jobId: job.jobId });
 
     // Note: Email notifications removed - using real-time polling instead
