@@ -74,12 +74,16 @@ app.post('/api/verify-password', (req, res) => {
 app.get('/api/job-status/:jobId', async (req, res) => {
   try {
     const { jobId } = req.params;
+    console.log(`📡 Job status request for: ${jobId}`);
+    
     const job = await jobManager.getJob(jobId);
     
     if (!job) {
+      console.error(`❌ Job ${jobId} not found when polling`);
       return res.status(404).json({ error: 'Job not found' });
     }
     
+    console.log(`✅ Returning job ${jobId} status: ${job.status} (${job.progress.percentComplete}%)`);
     res.json(job);
   } catch (error) {
     console.error('Job status error:', error);
@@ -254,7 +258,17 @@ app.post('/api/submit', submissionLimiter, checkPassword, async (req, res) => {
     };
 
     // Create job for tracking
+    console.log(`📝 Creating new job for migration...`);
     const job = await jobManager.createJob(submissionData);
+    console.log(`✅ Job created: ${job.jobId}`);
+
+    // Verify job can be retrieved immediately (catches file system issues)
+    const verifyJob = await jobManager.getJob(job.jobId);
+    if (!verifyJob) {
+      console.error(`❌ CRITICAL: Job ${job.jobId} was created but cannot be retrieved!`);
+      throw new Error('Job creation failed - file system error');
+    }
+    console.log(`✅ Job ${job.jobId} verified and ready for polling`);
 
     // Start background job processing immediately (non-blocking)
     processJob(job.jobId).catch(err => {
@@ -269,6 +283,7 @@ app.post('/api/submit', submissionLimiter, checkPassword, async (req, res) => {
 
     // Note: Email notifications removed - using real-time polling instead
 
+    console.log(`✅ Returning response with jobId: ${job.jobId}`);
     res.json({ 
       success: true, 
       message: 'Migration request submitted successfully. Track progress below.',

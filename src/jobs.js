@@ -10,7 +10,10 @@ const JOBS_DIR = path.join(__dirname, '../jobs');
 
 class JobManager {
   constructor() {
-    this.ensureJobsDir();
+    // Ensure jobs directory exists on startup (fire and forget)
+    fs.ensureDir(JOBS_DIR).catch(err => {
+      console.error('Failed to create jobs directory:', err);
+    });
   }
 
   async ensureJobsDir() {
@@ -21,6 +24,9 @@ class JobManager {
    * Create a new job
    */
   async createJob(submissionData) {
+    // Ensure directory exists before creating job
+    await this.ensureJobsDir();
+    
     const jobId = this.generateJobId();
     const job = {
       jobId,
@@ -48,6 +54,7 @@ class JobManager {
     };
 
     await this.saveJob(job);
+    console.log(`✅ Job ${jobId} created and saved to disk`);
     return job;
   }
 
@@ -151,12 +158,18 @@ class JobManager {
     const jobPath = path.join(JOBS_DIR, `${jobId}.json`);
     
     try {
+      console.log(`🔍 Looking for job: ${jobId} at path: ${jobPath}`);
+      
       if (await fs.pathExists(jobPath)) {
-        return await fs.readJson(jobPath);
+        const job = await fs.readJson(jobPath);
+        console.log(`✅ Job ${jobId} found with status: ${job.status}`);
+        return job;
       }
+      
+      console.error(`❌ Job ${jobId} not found at path: ${jobPath}`);
       return null;
     } catch (error) {
-      console.error('Error reading job:', error);
+      console.error(`❌ Error reading job ${jobId}:`, error);
       return null;
     }
   }
@@ -165,8 +178,24 @@ class JobManager {
    * Save job to disk
    */
   async saveJob(job) {
+    // Ensure directory exists before saving
+    await this.ensureJobsDir();
+    
     const jobPath = path.join(JOBS_DIR, `${job.jobId}.json`);
-    await fs.writeJson(jobPath, job, { spaces: 2 });
+    
+    try {
+      await fs.writeJson(jobPath, job, { spaces: 2 });
+      console.log(`💾 Job ${job.jobId} saved successfully to: ${jobPath}`);
+      
+      // Verify the file was written
+      const exists = await fs.pathExists(jobPath);
+      if (!exists) {
+        throw new Error(`Job file not found after write: ${jobPath}`);
+      }
+    } catch (error) {
+      console.error(`❌ Failed to save job ${job.jobId}:`, error);
+      throw error; // Re-throw to ensure caller knows about the failure
+    }
   }
 
   /**
