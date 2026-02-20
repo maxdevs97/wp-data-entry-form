@@ -42,14 +42,14 @@ function startPolling(jobId) {
     pollingInterval = null;
   }
   
-  // Set up recurring poll (every 3 seconds)
+  // Set up recurring poll (every 5 seconds to avoid rate limits)
   pollingInterval = setInterval(() => {
     pollJobStatus(jobId).catch(error => {
       console.error('Error in polling interval:', error);
     });
-  }, 3000);
+  }, 5000);
   
-  console.log('✅ Polling interval set (every 3 seconds)');
+  console.log('✅ Polling interval set (every 5 seconds)');
 }
 
 async function pollJobStatus(jobId) {

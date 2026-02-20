@@ -17,6 +17,21 @@ const { parsePostTypes } = require('../utils/post-type-parser');
 const sleep = (ms) => new Promise(resolve => setTimeout(resolve, ms));
 
 /**
+ * Safe progress update wrapper - doesn't fail if Sheets API is rate limited
+ */
+async function safeUpdateProgress(jobId, updates, logger) {
+  try {
+    await jobManager.updateProgress(jobId, updates);
+  } catch (error) {
+    logger?.warn('⚠️ Failed to update job progress (continuing anyway)', { 
+      error: error.message,
+      stage: updates.stage 
+    });
+    console.warn(`⚠️ Progress update failed for job ${jobId}: ${error.message}`);
+  }
+}
+
+/**
  * Convert form submission data to migration framework config
  */
 function createMigrationConfig(submissionData, jobId) {
@@ -179,14 +194,18 @@ async function processJob(jobId) {
     const verifier = new ContentVerifier(config, logger);
     const backupManager = new BackupManager(config, logger);
     
-    // Update job to running
-    await jobManager.updateJob(jobId, { status: 'running' });
-    logger.info('Job status set to running');
+    // Update job to running (with error handling)
+    try {
+      await jobManager.updateJob(jobId, { status: 'running' });
+      logger.info('Job status set to running');
+    } catch (updateError) {
+      logger.warn('⚠️ Failed to update job status to running (continuing anyway)', { error: updateError.message });
+    }
     
     // Stage 0: Backup (before any writes)
     let backupMetadata = null;
     try {
-      await jobManager.updateProgress(jobId, {
+      await safeUpdateProgress(jobId, {
         stage: 'backup',
         message: 'Creating backup before migration...',
         percentComplete: 5
@@ -212,7 +231,7 @@ async function processJob(jobId) {
     }
     
     // Stage 1: Extract data from source
-    await jobManager.updateProgress(jobId, {
+    await safeUpdateProgress(jobId, {
       stage: 'extracting',
       message: 'Cataloging source site...',
       percentComplete: 10
@@ -223,7 +242,7 @@ async function processJob(jobId) {
     const itemsTotal = manifest.total_items || 0;
     
     logger.info(`Found ${itemsTotal} items to migrate`);
-    await jobManager.updateProgress(jobId, {
+    await safeUpdateProgress(jobId, {
       stage: 'extracting',
       message: `Extracting ${itemsTotal} items from source...`,
       percentComplete: 15,
@@ -234,7 +253,7 @@ async function processJob(jobId) {
     const extractedCount = extractResults.filter(r => r.success).length;
     
     logger.success(`✅ Extracted ${extractedCount}/${itemsTotal} items`);
-    await jobManager.updateProgress(jobId, {
+    await safeUpdateProgress(jobId, {
       stage: 'extracting',
       message: `Extracted ${extractedCount} items successfully`,
       percentComplete: 30,
@@ -250,7 +269,7 @@ async function processJob(jobId) {
     }
     
     // Stage 2: Transform content
-    await jobManager.updateProgress(jobId, {
+    await safeUpdateProgress(jobId, {
       stage: 'transforming',
       message: 'Transforming content structure...',
       percentComplete: 35
@@ -261,7 +280,7 @@ async function processJob(jobId) {
     const transformedCount = transformResults.filter(r => r.success).length;
     
     logger.success(`✅ Transformed ${transformedCount}/${extractedCount} items`);
-    await jobManager.updateProgress(jobId, {
+    await safeUpdateProgress(jobId, {
       stage: 'transforming',
       message: `Transformed ${transformedCount} items`,
       percentComplete: 45
@@ -283,7 +302,7 @@ async function processJob(jobId) {
       const filePath = transformedFiles[i];
       const progressPercent = 45 + Math.floor((i / insertTotal) * 35); // 45% -> 80%
       
-      await jobManager.updateProgress(jobId, {
+      await safeUpdateProgress(jobId, {
         stage: 'inserting',
         message: `Inserting item ${i + 1} of ${insertTotal}...`,
         percentComplete: progressPercent,
@@ -312,7 +331,7 @@ async function processJob(jobId) {
     }
     
     logger.success(`✅ Inserted ${insertedCount}/${insertTotal} items`);
-    await jobManager.updateProgress(jobId, {
+    await safeUpdateProgress(jobId, {
       stage: 'inserting',
       message: `Inserted ${insertedCount} items successfully`,
       percentComplete: 80,
@@ -320,7 +339,7 @@ async function processJob(jobId) {
     });
     
     // Stage 4: Verify migration (QA checks)
-    await jobManager.updateProgress(jobId, {
+    await safeUpdateProgress(jobId, {
       stage: 'verifying',
       message: 'Running quality assurance checks...',
       percentComplete: 85
@@ -333,7 +352,7 @@ async function processJob(jobId) {
       const verifiedCount = verifyResults.filter(r => r.success).length;
       
       logger.success(`✅ Verified ${verifiedCount}/${insertedCount} items`);
-      await jobManager.updateProgress(jobId, {
+      await safeUpdateProgress(jobId, {
         stage: 'verifying',
         message: `Verified ${verifiedCount} items`,
         percentComplete: 95

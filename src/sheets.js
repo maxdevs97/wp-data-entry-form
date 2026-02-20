@@ -23,9 +23,10 @@ try {
   credentials = null;
 }
 
-// Cache for job reads (1 second TTL)
+// Cache for job reads (10 second TTL for running jobs, 5 seconds for completed)
 const jobCache = new Map();
-const JOB_CACHE_TTL = 1000; // 1 second
+const JOB_CACHE_TTL_RUNNING = 10000; // 10 seconds for active jobs
+const JOB_CACHE_TTL_COMPLETE = 5000; // 5 seconds for completed jobs
 
 /**
  * Get authenticated Google Sheets client
@@ -43,6 +44,35 @@ function getAuthenticatedSheets() {
   });
 
   return google.sheets({ version: 'v4', auth });
+}
+
+/**
+ * Retry wrapper with exponential backoff for rate-limited API calls
+ */
+async function retryWithBackoff(fn, maxRetries = 3) {
+  let lastError;
+  
+  for (let attempt = 0; attempt < maxRetries; attempt++) {
+    try {
+      return await fn();
+    } catch (error) {
+      lastError = error;
+      
+      // If rate limited (429), wait and retry
+      if (error.code === 429 || (error.errors && error.errors[0]?.reason === 'rateLimitExceeded')) {
+        const backoffMs = Math.min(1000 * Math.pow(2, attempt), 10000); // Max 10s
+        console.warn(`⚠️ Rate limited. Retrying in ${backoffMs}ms (attempt ${attempt + 1}/${maxRetries})`);
+        await new Promise(resolve => setTimeout(resolve, backoffMs));
+        continue;
+      }
+      
+      // For other errors, don't retry
+      throw error;
+    }
+  }
+  
+  // All retries exhausted
+  throw lastError;
 }
 
 /**
@@ -140,18 +170,27 @@ async function getJobsSheet() {
  * Returns { rowIndex, job } or null if not found
  */
 async function findJobRow(jobId) {
-  // Check cache first
+  // Check cache first with dynamic TTL based on job status
   const cached = jobCache.get(jobId);
-  if (cached && Date.now() - cached.timestamp < JOB_CACHE_TTL) {
-    return cached.data;
+  if (cached) {
+    const ttl = (cached.data && (cached.data.job.status === 'complete' || cached.data.job.status === 'failed'))
+      ? JOB_CACHE_TTL_COMPLETE
+      : JOB_CACHE_TTL_RUNNING;
+    
+    if (Date.now() - cached.timestamp < ttl) {
+      console.log(`📦 Cache hit for job ${jobId} (${ttl}ms TTL)`);
+      return cached.data;
+    }
   }
 
   const { sheets, spreadsheetId } = await getJobsSheet();
 
   try {
-    const response = await sheets.spreadsheets.values.get({
-      spreadsheetId,
-      range: 'Jobs!A:M'
+    const response = await retryWithBackoff(async () => {
+      return await sheets.spreadsheets.values.get({
+        spreadsheetId,
+        range: 'Jobs!A:M'
+      });
     });
 
     const rows = response.data.values || [];
@@ -271,14 +310,16 @@ async function appendJob(job) {
   const row = jobToRow(job);
 
   try {
-    await sheets.spreadsheets.values.append({
-      spreadsheetId,
-      range: 'Jobs!A:M',
-      valueInputOption: 'RAW',
-      insertDataOption: 'INSERT_ROWS',
-      requestBody: {
-        values: [row]
-      }
+    await retryWithBackoff(async () => {
+      return await sheets.spreadsheets.values.append({
+        spreadsheetId,
+        range: 'Jobs!A:M',
+        valueInputOption: 'RAW',
+        insertDataOption: 'INSERT_ROWS',
+        requestBody: {
+          values: [row]
+        }
+      });
     });
 
     console.log(`✅ Job ${job.jobId} appended to Google Sheets`);
@@ -324,13 +365,15 @@ async function updateJobRow(jobId, updates) {
   const row = jobToRow(updatedJob);
 
   try {
-    await sheets.spreadsheets.values.update({
-      spreadsheetId,
-      range: `Jobs!A${rowIndex}:M${rowIndex}`,
-      valueInputOption: 'RAW',
-      requestBody: {
-        values: [row]
-      }
+    await retryWithBackoff(async () => {
+      return await sheets.spreadsheets.values.update({
+        spreadsheetId,
+        range: `Jobs!A${rowIndex}:M${rowIndex}`,
+        valueInputOption: 'RAW',
+        requestBody: {
+          values: [row]
+        }
+      });
     });
 
     console.log(`✅ Job ${jobId} updated in Google Sheets`);
