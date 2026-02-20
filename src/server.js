@@ -234,6 +234,9 @@ app.post('/api/submit', submissionLimiter, checkPassword, async (req, res) => {
     
     const submissionData = {
       timestamp: new Date().toISOString(),
+      requesterName: 'Team Member', // Default value for team submissions
+      requesterEmail: 'team@sheragency.com', // Default value
+      priority: 'Normal', // Default priority
       sourceUrl,
       destinationUrl,
       wpUsername, // Will be encrypted in real deployment
@@ -242,8 +245,10 @@ app.post('/api/submit', submissionLimiter, checkPassword, async (req, res) => {
       contentTypePostTypes: contentTypePostTypes || false,
       certainPages: certainPages || [],
       postTypes: postTypes || [],
+      contentType: contentTypeDisplay.join(' | '), // For backlog/sheets compatibility
       contentTypeDisplay: contentTypeDisplay.join(' | '),
       specialInstructions: specialInstructions || 'None',
+      preserve: req.body.preserve || {}, // Store preserve preferences
       status: 'Pending Review'
     };
 

@@ -63,24 +63,38 @@ function formatTaskEntry(data) {
     timeStyle: 'short'
   });
 
-  return `### ${priorityFlag}WordPress Migration Request - ${data.requesterName}
+  const postTypesFormatted = Array.isArray(data.postTypes) 
+    ? data.postTypes.join(', ') 
+    : data.postTypes || 'N/A';
+  
+  const certainPagesFormatted = Array.isArray(data.certainPages) 
+    ? data.certainPages.join(', ') 
+    : data.certainPages || 'N/A';
+
+  return `### ${priorityFlag}WordPress Migration Request - ${data.requesterName || 'Team Member'}
 
 **Submitted:** ${timestamp}  
-**Requester:** ${data.requesterName} (${data.requesterEmail})  
-**Priority:** ${data.priority}
+**Requester:** ${data.requesterName || 'Team Member'} (${data.requesterEmail || 'team@sheragency.com'})  
+**Priority:** ${data.priority || 'Normal'}
 
 **Migration Details:**
 - **Source:** ${data.sourceUrl}
 - **Destination:** ${data.destinationUrl}
 - **WP Username:** ${data.wpUsername}
 - **WP Password:** \`${data.wpPassword}\` *(secure)*
-- **Content Type:** ${data.contentType}
-- **Post Types:** ${data.postTypes}
+- **Content Type:** ${data.contentType || data.contentTypeDisplay}
+- **Post Types:** ${postTypesFormatted}
+- **Certain Pages:** ${certainPagesFormatted}
+
+**Preservation Settings:**
+${data.preserve ? Object.entries(data.preserve).map(([key, value]) => `- ${key}: ${value ? '✓' : '✗'}`).join('\n') : 'Default (all elements)'}
 
 **Special Instructions:**
-${data.specialInstructions}
+${data.specialInstructions || 'None'}
 
 **Status:** ${data.status}
+
+**Job ID:** ${data.jobId || 'Pending'}
 
 **Next Steps:**
 1. Kit: Review request and validate requirements

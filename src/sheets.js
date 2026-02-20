@@ -119,15 +119,15 @@ async function createAuditSheet(sheets) {
 async function appendToSheet(sheets, spreadsheetId, data) {
   const row = [
     data.timestamp,
-    data.requesterName,
-    data.requesterEmail,
+    data.requesterName || 'Team Member',
+    data.requesterEmail || 'team@sheragency.com',
     data.sourceUrl,
     data.destinationUrl,
-    data.contentType,
-    data.priority,
+    data.contentType || data.contentTypeDisplay || 'N/A',
+    data.priority || 'Normal',
     data.status,
     '', // Completion time (filled later)
-    data.specialInstructions
+    data.specialInstructions || 'None'
   ];
 
   await sheets.spreadsheets.values.append({
