@@ -9,6 +9,8 @@ const formSuccess = document.getElementById('formSuccess');
 
 // State
 let accessPassword = '';
+let pollingInterval = null;
+let currentJobId = null;
 
 // Conditional Section Toggles
 document.getElementById('contentTypeCertainPages').addEventListener('change', function() {
@@ -26,7 +28,6 @@ function getTextareaArrayData(textareaId) {
     return [];
   }
   
-  // Split by newline, trim whitespace, filter empty lines
   return textarea.value
     .split('\n')
     .map(line => line.trim())
@@ -40,7 +41,6 @@ loginForm.addEventListener('submit', async (e) => {
   const password = document.getElementById('password').value;
   const submitBtn = loginForm.querySelector('button[type="submit"]');
   
-  // Show loading state
   submitBtn.classList.add('loading');
   submitBtn.disabled = true;
   hideMessage(loginError);
@@ -55,14 +55,9 @@ loginForm.addEventListener('submit', async (e) => {
     const data = await response.json();
     
     if (data.valid) {
-      // Store password for form submission
       accessPassword = password;
-      
-      // Switch screens
       loginScreen.classList.remove('active');
       formScreen.classList.add('active');
-      
-      // Reset login form
       loginForm.reset();
     } else {
       showMessage(loginError, 'Invalid password. Please try again.');
@@ -81,14 +76,12 @@ migrationForm.addEventListener('submit', async (e) => {
   
   const submitBtn = migrationForm.querySelector('button[type="submit"]');
   
-  // Show loading state
   submitBtn.classList.add('loading');
   submitBtn.disabled = true;
   hideMessage(formError);
   hideMessage(formSuccess);
   
   try {
-    // Gather form data
     const certainPagesChecked = document.getElementById('contentTypeCertainPages').checked;
     const postTypesChecked = document.getElementById('contentTypePostTypes').checked;
     
@@ -107,14 +100,12 @@ migrationForm.addEventListener('submit', async (e) => {
       specialInstructions: document.getElementById('specialInstructions').value.trim()
     };
     
-    // Client-side validation
     const validation = validateForm(formData);
     if (!validation.valid) {
       showMessage(formError, validation.error);
       return;
     }
     
-    // Submit to API
     const response = await fetch('/api/submit', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
@@ -124,16 +115,11 @@ migrationForm.addEventListener('submit', async (e) => {
     const data = await response.json();
     
     if (response.ok && data.success) {
-      // Success! Switch to results screen
       showResultsScreen(data.jobId, formData);
-      
     } else {
-      // Error from server
       const errorMsg = data.error || 'An error occurred. Please try again.';
       const details = data.details ? `<br><small>${data.details}</small>` : '';
       showMessage(formError, errorMsg + details);
-      
-      // Scroll to error
       formError.scrollIntoView({ behavior: 'smooth', block: 'center' });
     }
     
@@ -151,18 +137,15 @@ migrationForm.addEventListener('submit', async (e) => {
 
 // Client-side Form Validation
 function validateForm(data) {
-  // Name validation
   if (!data.requesterName || data.requesterName.length < 2) {
     return { valid: false, error: 'Please enter your full name.' };
   }
   
-  // Email validation
   const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
   if (!data.requesterEmail || !emailRegex.test(data.requesterEmail)) {
     return { valid: false, error: 'Please enter a valid email address.' };
   }
   
-  // URL validation
   const urlRegex = /^https?:\/\/.+/i;
   if (!data.sourceUrl || !urlRegex.test(data.sourceUrl)) {
     return { valid: false, error: 'Source URL must be a valid URL (starting with http:// or https://).' };
@@ -171,7 +154,6 @@ function validateForm(data) {
     return { valid: false, error: 'Destination URL must be a valid URL (starting with http:// or https://).' };
   }
   
-  // WordPress credentials
   if (!data.wpUsername || data.wpUsername.length < 2) {
     return { valid: false, error: 'WordPress username is required.' };
   }
@@ -179,12 +161,10 @@ function validateForm(data) {
     return { valid: false, error: 'WordPress Application Password is required (minimum 6 characters).' };
   }
   
-  // Content type validation
   if (!data.contentTypeCertainPages && !data.contentTypePostTypes) {
     return { valid: false, error: 'Please select at least one content type (Certain Pages or Post Types).' };
   }
   
-  // Validate repeater fields
   if (data.contentTypeCertainPages && data.certainPages.length === 0) {
     return { valid: false, error: 'Please specify at least one page to migrate.' };
   }
@@ -206,7 +186,7 @@ function hideMessage(element) {
   element.style.display = 'none';
 }
 
-// Real-time URL validation feedback
+// Real-time validation feedback
 ['sourceUrl', 'destinationUrl'].forEach(fieldId => {
   const field = document.getElementById(fieldId);
   field.addEventListener('blur', () => {
@@ -219,7 +199,6 @@ function hideMessage(element) {
   });
 });
 
-// Real-time email validation feedback
 const emailField = document.getElementById('requesterEmail');
 emailField.addEventListener('blur', () => {
   const value = emailField.value.trim();
@@ -231,46 +210,38 @@ emailField.addEventListener('blur', () => {
   }
 });
 
-// Auto-focus first field on screen change
-const observer = new MutationObserver((mutations) => {
-  mutations.forEach((mutation) => {
-    if (mutation.target.classList.contains('active')) {
-      const firstInput = mutation.target.querySelector('input:not([type="checkbox"])');
-      if (firstInput) {
-        setTimeout(() => firstInput.focus(), 100);
-      }
-    }
-  });
-});
-
-observer.observe(loginScreen, { attributes: true, attributeFilter: ['class'] });
-observer.observe(formScreen, { attributes: true, attributeFilter: ['class'] });
-
-// Initialize - focus first field
+// Auto-focus first field
 document.getElementById('password').focus();
 
 // Results Screen Management
-let pollingInterval = null;
-
 function showResultsScreen(jobId, formData) {
-  // Hide form screen
+  currentJobId = jobId;
+  
   formScreen.classList.remove('active');
   
-  // Create results screen if it doesn't exist
   let resultsScreen = document.getElementById('resultsScreen');
   if (!resultsScreen) {
     resultsScreen = createResultsScreen();
     document.querySelector('.container').appendChild(resultsScreen);
   }
   
-  // Show results screen
   resultsScreen.classList.add('active');
-  
-  // Reset form
   migrationForm.reset();
   
-  // Start polling for job status
-  startPolling(jobId, formData);
+  // Update migration info
+  document.getElementById('infoSource').textContent = formData.sourceUrl;
+  document.getElementById('infoDestination').textContent = formData.destinationUrl;
+  
+  const contentTypeParts = [];
+  if (formData.contentTypeCertainPages) {
+    contentTypeParts.push(`Certain Pages (${formData.certainPages.length})`);
+  }
+  if (formData.contentTypePostTypes) {
+    contentTypeParts.push(`Post Types (${formData.postTypes.length})`);
+  }
+  document.getElementById('infoContentType').textContent = contentTypeParts.join(' + ');
+  
+  startPolling(jobId);
 }
 
 function createResultsScreen() {
@@ -284,7 +255,6 @@ function createResultsScreen() {
         <p id="resultsSubtitle">Tracking your migration request</p>
       </div>
       <div class="card-body">
-        <!-- Migration Info -->
         <section class="results-section" id="migrationInfo">
           <h2>Migration Details</h2>
           <div class="info-grid">
@@ -307,7 +277,6 @@ function createResultsScreen() {
           </div>
         </section>
 
-        <!-- Progress Bar -->
         <section class="results-section" id="progressSection">
           <h2>Progress</h2>
           <div class="progress-container">
@@ -325,7 +294,6 @@ function createResultsScreen() {
           </div>
         </section>
 
-        <!-- Results Table (Hidden until complete) -->
         <section class="results-section" id="resultsTableSection" style="display: none;">
           <h2>Migration Results</h2>
           <div class="results-summary" id="resultsSummary"></div>
@@ -345,7 +313,6 @@ function createResultsScreen() {
           </div>
         </section>
 
-        <!-- Backup Info (Hidden until complete) -->
         <section class="results-section" id="backupSection" style="display: none;">
           <h2>🔄 Backup & Restore</h2>
           <div class="backup-info">
@@ -364,13 +331,11 @@ function createResultsScreen() {
           </div>
         </section>
 
-        <!-- Error Section (Hidden until error) -->
         <section class="results-section error-section" id="errorSection" style="display: none;">
           <h2>❌ Migration Failed</h2>
           <div id="errorDetails" class="error-details"></div>
         </section>
 
-        <!-- Feedback Section -->
         <section class="results-section" id="feedbackSection" style="display: none;">
           <h2>📣 Report an Issue</h2>
           <p>Found something wrong with the migration results? Let us know!</p>
@@ -379,7 +344,6 @@ function createResultsScreen() {
           </button>
         </section>
 
-        <!-- Actions -->
         <div class="form-actions">
           <button id="newRequestButton" class="btn btn-secondary">
             Submit Another Request
@@ -391,7 +355,6 @@ function createResultsScreen() {
       </div>
     </div>
 
-    <!-- Feedback Modal -->
     <div id="feedbackModal" class="modal">
       <div class="modal-content">
         <div class="modal-header">
@@ -452,30 +415,17 @@ function createResultsScreen() {
     </div>
   `;
   
+  setupResultsButtons();
+  setupFeedbackModal();
+  
   return screen;
 }
 
-function startPolling(jobId, formData) {
-  // Store job ID for later use
-  window.currentJobId = jobId;
-  
-  // Update migration info
-  document.getElementById('infoSource').textContent = formData.sourceUrl;
-  document.getElementById('infoDestination').textContent = formData.destinationUrl;
-  document.getElementById('infoContentType').textContent = 
-    (formData.contentTypeCertainPages ? `Certain Pages (${formData.certainPages.length})` : '') +
-    (formData.contentTypeCertainPages && formData.contentTypePostTypes ? ' + ' : '') +
-    (formData.contentTypePostTypes ? `Post Types (${formData.postTypes.length})` : '');
-  
-  // Poll immediately
+function startPolling(jobId) {
   pollJobStatus(jobId);
   
-  // Then poll every 3 seconds
   if (pollingInterval) clearInterval(pollingInterval);
   pollingInterval = setInterval(() => pollJobStatus(jobId), 3000);
-  
-  // Setup button handlers
-  setupResultsButtons(jobId);
 }
 
 async function pollJobStatus(jobId) {
@@ -483,59 +433,53 @@ async function pollJobStatus(jobId) {
     const response = await fetch(`/api/job-status/${jobId}`);
     
     if (!response.ok) {
-      throw new Error('Failed to fetch job status');
+      console.error('Failed to fetch job status');
+      return;
     }
     
     const job = await response.json();
     updateResultsUI(job);
     
-    // Stop polling if complete or failed
     if (job.status === 'complete' || job.status === 'failed') {
-      clearInterval(pollingInterval);
-      pollingInterval = null;
+      if (pollingInterval) {
+        clearInterval(pollingInterval);
+        pollingInterval = null;
+      }
     }
     
   } catch (error) {
     console.error('Polling error:', error);
-    // Continue polling despite errors
   }
 }
 
 function updateResultsUI(job) {
-  // Update status badge
   const statusBadge = document.getElementById('infoStatus');
   statusBadge.textContent = job.status.charAt(0).toUpperCase() + job.status.slice(1);
   statusBadge.className = `status-badge status-${job.status}`;
   
-  // Update progress
-  const progress = job.progress;
-  document.getElementById('progressFill').style.width = `${progress.percentComplete}%`;
-  document.getElementById('progressPercent').textContent = `${progress.percentComplete}%`;
-  document.getElementById('progressMessage').textContent = progress.message;
-  document.getElementById('progressItems').textContent = `${progress.itemsProcessed} / ${progress.itemsTotal} items`;
-  document.getElementById('progressStage').textContent = progress.stage;
+  const progress = job.progress || {};
+  document.getElementById('progressFill').style.width = `${progress.percentComplete || 0}%`;
+  document.getElementById('progressPercent').textContent = `${progress.percentComplete || 0}%`;
+  document.getElementById('progressMessage').textContent = progress.message || 'Processing...';
+  document.getElementById('progressItems').textContent = 
+    `${progress.itemsProcessed || 0} / ${progress.itemsTotal || 0} items`;
+  document.getElementById('progressStage').textContent = progress.stage || '-';
   
-  // Handle completion
   if (job.status === 'complete' && job.results) {
     showResults(job);
   }
   
-  // Handle failure
   if (job.status === 'failed') {
     showError(job);
   }
 }
 
 function showResults(job) {
-  // Hide progress section
   document.getElementById('progressSection').style.display = 'none';
-  
-  // Show results table and feedback section
   document.getElementById('resultsTableSection').style.display = 'block';
   document.getElementById('feedbackSection').style.display = 'block';
   
-  // Update summary
-  const results = job.results;
+  const results = job.results || {};
   const summaryHTML = `
     <div class="summary-grid">
       <div class="summary-item success">
@@ -554,7 +498,6 @@ function showResults(job) {
   `;
   document.getElementById('resultsSummary').innerHTML = summaryHTML;
   
-  // Populate results table
   const tbody = document.getElementById('resultsTableBody');
   tbody.innerHTML = '';
   
@@ -573,7 +516,6 @@ function showResults(job) {
     tbody.innerHTML = '<tr><td colspan="4" style="text-align: center; color: var(--text-secondary);">No migration results available</td></tr>';
   }
   
-  // Show backup section if backup exists
   if (job.backupInfo) {
     document.getElementById('backupSection').style.display = 'block';
     document.getElementById('backupTimestamp').textContent = job.backupInfo.timestamp || '-';
@@ -585,7 +527,8 @@ function showError(job) {
   document.getElementById('progressSection').style.display = 'none';
   document.getElementById('errorSection').style.display = 'block';
   
-  const errorHTML = job.errors.map(err => `
+  const errors = job.errors || [];
+  const errorHTML = errors.map(err => `
     <div class="error-item">
       <div class="error-timestamp">${new Date(err.timestamp).toLocaleString()}</div>
       <div class="error-message">${escapeHtml(err.message)}</div>
@@ -595,105 +538,82 @@ function showError(job) {
   document.getElementById('errorDetails').innerHTML = errorHTML || '<p>An unknown error occurred.</p>';
 }
 
-function setupResultsButtons(jobId) {
-  // New Request button
-  document.getElementById('newRequestButton').addEventListener('click', () => {
-    // Hide results screen
-    document.getElementById('resultsScreen').classList.remove('active');
-    
-    // Show form screen
-    formScreen.classList.add('active');
-    
-    // Clear polling
-    if (pollingInterval) {
-      clearInterval(pollingInterval);
-      pollingInterval = null;
-    }
-  });
-  
-  // Refresh button
-  document.getElementById('refreshButton').addEventListener('click', () => {
-    pollJobStatus(jobId);
-  });
-  
-  // Restore button
-  document.getElementById('restoreButton').addEventListener('click', async () => {
-    if (!confirm('Are you sure you want to restore the backup? This will rollback all migration changes.')) {
-      return;
-    }
-    
-    const restoreBtn = document.getElementById('restoreButton');
-    restoreBtn.classList.add('loading');
-    restoreBtn.disabled = true;
-    
-    try {
-      const response = await fetch(`/api/restore/${jobId}`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ password: accessPassword })
-      });
-      
-      const data = await response.json();
-      
-      if (response.ok && data.success) {
-        alert('✅ Restore request submitted successfully! Kit will process the restoration shortly.');
-      } else {
-        alert(`❌ Restore failed: ${data.error || 'Unknown error'}`);
+function setupResultsButtons() {
+  document.addEventListener('click', async (e) => {
+    if (e.target.id === 'newRequestButton' || e.target.closest('#newRequestButton')) {
+      document.getElementById('resultsScreen').classList.remove('active');
+      formScreen.classList.add('active');
+      if (pollingInterval) {
+        clearInterval(pollingInterval);
+        pollingInterval = null;
       }
-    } catch (error) {
-      alert('❌ Network error: Unable to submit restore request.');
-    } finally {
-      restoreBtn.classList.remove('loading');
-      restoreBtn.disabled = false;
+    }
+    
+    if (e.target.id === 'refreshButton' || e.target.closest('#refreshButton')) {
+      if (currentJobId) {
+        pollJobStatus(currentJobId);
+      }
+    }
+    
+    if (e.target.id === 'restoreButton' || e.target.closest('#restoreButton')) {
+      if (!confirm('Are you sure you want to restore the backup? This will rollback all migration changes.')) {
+        return;
+      }
+      
+      const restoreBtn = document.getElementById('restoreButton');
+      restoreBtn.classList.add('loading');
+      restoreBtn.disabled = true;
+      
+      try {
+        const response = await fetch(`/api/restore/${currentJobId}`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ password: accessPassword })
+        });
+        
+        const data = await response.json();
+        
+        if (response.ok && data.success) {
+          alert('✅ Restore request submitted successfully! Kit will process the restoration shortly.');
+        } else {
+          alert(`❌ Restore failed: ${data.error || 'Unknown error'}`);
+        }
+      } catch (error) {
+        alert('❌ Network error: Unable to submit restore request.');
+      } finally {
+        restoreBtn.classList.remove('loading');
+        restoreBtn.disabled = false;
+      }
     }
   });
 }
-
-function escapeHtml(text) {
-  const div = document.createElement('div');
-  div.textContent = text;
-  return div.innerHTML;
-}
-
-// Feedback Modal Management
-let currentFeedbackJobId = null;
 
 function setupFeedbackModal() {
-  const feedbackButton = document.getElementById('feedbackButton');
   const feedbackModal = document.getElementById('feedbackModal');
-  const closeFeedbackModal = document.getElementById('closeFeedbackModal');
-  const cancelFeedback = document.getElementById('cancelFeedback');
   const feedbackForm = document.getElementById('feedbackForm');
   
-  // Open modal
-  feedbackButton.addEventListener('click', () => {
-    currentFeedbackJobId = window.currentJobId;
-    feedbackModal.style.display = 'flex';
-    setTimeout(() => feedbackModal.classList.add('active'), 10);
-    document.getElementById('feedbackCategory').focus();
-  });
-  
-  // Close modal handlers
-  const closeModal = () => {
-    feedbackModal.classList.remove('active');
-    setTimeout(() => {
-      feedbackModal.style.display = 'none';
-      feedbackForm.reset();
-      hideMessage(document.getElementById('feedbackError'));
-    }, 300);
-  };
-  
-  closeFeedbackModal.addEventListener('click', closeModal);
-  cancelFeedback.addEventListener('click', closeModal);
-  
-  // Close on outside click
-  feedbackModal.addEventListener('click', (e) => {
+  document.addEventListener('click', (e) => {
+    if (e.target.id === 'feedbackButton' || e.target.closest('#feedbackButton')) {
+      feedbackModal.style.display = 'flex';
+      setTimeout(() => feedbackModal.classList.add('active'), 10);
+      document.getElementById('feedbackCategory').focus();
+    }
+    
+    if (e.target.id === 'closeFeedbackModal' || e.target.id === 'cancelFeedback') {
+      feedbackModal.classList.remove('active');
+      setTimeout(() => {
+        feedbackModal.style.display = 'none';
+        feedbackForm.reset();
+        hideMessage(document.getElementById('feedbackError'));
+      }, 300);
+    }
+    
     if (e.target === feedbackModal) {
-      closeModal();
+      feedbackModal.classList.remove('active');
+      setTimeout(() => feedbackModal.style.display = 'none', 300);
     }
   });
   
-  // Handle feedback form submission
   feedbackForm.addEventListener('submit', async (e) => {
     e.preventDefault();
     
@@ -703,11 +623,11 @@ function setupFeedbackModal() {
     hideMessage(document.getElementById('feedbackError'));
     
     try {
-      // Get the current job to extract requester info
-      const job = await jobManager.getJob(currentFeedbackJobId);
+      const jobResponse = await fetch(`/api/job-status/${currentJobId}`);
+      const job = await jobResponse.json();
       
       const feedbackData = {
-        jobId: currentFeedbackJobId,
+        jobId: currentJobId,
         category: document.getElementById('feedbackCategory').value,
         itemReference: document.getElementById('feedbackItemReference').value.trim(),
         message: document.getElementById('feedbackMessage').value.trim(),
@@ -724,8 +644,11 @@ function setupFeedbackModal() {
       const data = await response.json();
       
       if (response.ok && data.success) {
-        // Success! Close modal and show confirmation
-        closeModal();
+        feedbackModal.classList.remove('active');
+        setTimeout(() => {
+          feedbackModal.style.display = 'none';
+          feedbackForm.reset();
+        }, 300);
         alert('✅ Thank you! Your feedback has been submitted. The team will review it shortly.');
       } else {
         showMessage(
@@ -746,25 +669,8 @@ function setupFeedbackModal() {
   });
 }
 
-// Initialize feedback modal when results screen is created
-const originalCreateResultsScreen = createResultsScreen;
-createResultsScreen = function() {
-  const screen = originalCreateResultsScreen();
-  setTimeout(() => setupFeedbackModal(), 100);
-  return screen;
-};
-
-// Helper to get job data for feedback
-const jobManager = {
-  async getJob(jobId) {
-    try {
-      const response = await fetch(`/api/job-status/${jobId}`);
-      if (response.ok) {
-        return await response.json();
-      }
-    } catch (error) {
-      console.error('Failed to fetch job for feedback:', error);
-    }
-    return null;
-  }
-};
+function escapeHtml(text) {
+  const div = document.createElement('div');
+  div.textContent = text;
+  return div.innerHTML;
+}

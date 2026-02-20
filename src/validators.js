@@ -72,56 +72,109 @@ function validateRequest(data) {
  */
 async function testWPConnection(url, username, password) {
   try {
-    // Clean URL
-    const baseUrl = url.replace(/\/$/, '');
-    const apiUrl = `${baseUrl}/wp-json/wp/v2/users/me`;
-
-    // Test authentication
-    const response = await axios.get(apiUrl, {
-      auth: {
-        username,
-        password
-      },
-      timeout: 10000,
-      validateStatus: (status) => status < 500 // Accept 401/403 as valid responses
-    });
-
-    if (response.status === 200) {
-      return { 
-        valid: true, 
-        message: 'WordPress connection successful',
-        user: response.data.name
-      };
-    } else if (response.status === 401 || response.status === 403) {
-      return { 
-        valid: false, 
-        error: 'Authentication failed. Please check username and password.' 
-      };
-    } else {
-      return { 
-        valid: false, 
-        error: `Unexpected response from WordPress (${response.status})` 
-      };
+    // Clean URL - remove trailing slash and ensure proper format
+    let baseUrl = url.trim().replace(/\/$/, '');
+    
+    // Ensure URL has protocol
+    if (!baseUrl.match(/^https?:\/\//i)) {
+      baseUrl = `https://${baseUrl}`;
     }
 
+    // Try multiple REST API endpoints (some sites use different paths)
+    const endpoints = [
+      `${baseUrl}/wp-json/wp/v2/users/me`,
+      `${baseUrl}/wp-json/wp/v2/posts?per_page=1`,
+      `${baseUrl}/index.php/wp-json/wp/v2/users/me`
+    ];
+
+    let lastError = null;
+
+    for (const apiUrl of endpoints) {
+      try {
+        console.log(`Testing WordPress connection: ${apiUrl}`);
+        
+        // Test authentication with Application Password format
+        const authPassword = password.replace(/\s+/g, ''); // Remove spaces from app password
+        
+        const response = await axios.get(apiUrl, {
+          auth: {
+            username,
+            password: authPassword
+          },
+          timeout: 15000,
+          maxRedirects: 5,
+          validateStatus: (status) => status < 500,
+          headers: {
+            'User-Agent': 'WP-Migration-Tool/1.0'
+          }
+        });
+
+        if (response.status === 200) {
+          console.log(`✅ WordPress connection successful via ${apiUrl}`);
+          return { 
+            valid: true, 
+            message: 'WordPress connection successful',
+            endpoint: apiUrl,
+            user: response.data.name || response.data[0]?.author || 'Connected'
+          };
+        } else if (response.status === 401 || response.status === 403) {
+          lastError = 'Authentication failed. Please verify your WordPress username and Application Password.';
+        } else {
+          lastError = `WordPress returned status ${response.status}`;
+        }
+      } catch (endpointError) {
+        lastError = endpointError.message;
+        // Continue to next endpoint
+      }
+    }
+
+    // All endpoints failed
+    return { 
+      valid: false, 
+      error: lastError || 'Cannot connect to WordPress REST API' 
+    };
+
   } catch (error) {
-    if (error.code === 'ECONNREFUSED' || error.code === 'ENOTFOUND') {
+    console.error('WordPress connection test error:', error);
+    
+    if (error.code === 'ECONNREFUSED') {
       return { 
         valid: false, 
-        error: 'Cannot connect to WordPress site. Please check the URL.' 
+        error: 'Connection refused. Please check if the WordPress site is accessible and the URL is correct.' 
+      };
+    }
+    
+    if (error.code === 'ENOTFOUND') {
+      return { 
+        valid: false, 
+        error: 'Domain not found. Please check the URL is correct and the site exists.' 
+      };
+    }
+    
+    if (error.code === 'ETIMEDOUT' || error.code === 'ECONNABORTED') {
+      return { 
+        valid: false, 
+        error: 'Connection timeout. The WordPress site may be slow or unreachable.' 
       };
     }
     
     if (error.response && error.response.status === 401) {
       return { 
         valid: false, 
-        error: 'Authentication failed. Please check username and password.' 
+        error: 'Authentication failed. Please check your WordPress username and Application Password.' 
+      };
+    }
+
+    if (error.response && error.response.status === 404) {
+      return { 
+        valid: false, 
+        error: 'WordPress REST API not found. Please verify the URL and ensure WordPress REST API is enabled.' 
       };
     }
 
     return { 
       valid: false, 
-      error: error.message || 'Failed to connect to WordPress REST API' 
+      error: `Connection failed: ${error.message}. Please verify the WordPress site URL and REST API availability.` 
     };
   }
 }

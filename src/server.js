@@ -264,12 +264,11 @@ app.post('/api/submit', submissionLimiter, checkPassword, async (req, res) => {
     // Log to Google Sheet
     await logToGoogleSheet({ ...submissionData, jobId: job.jobId });
 
-    // Send confirmation email
-    await sendConfirmationEmail(submissionData);
+    // Note: Email notifications removed - using real-time polling instead
 
     res.json({ 
       success: true, 
-      message: 'Migration request submitted successfully. You will receive a confirmation email shortly.',
+      message: 'Migration request submitted successfully. Track progress below.',
       jobId: job.jobId,
       requestId: Buffer.from(submissionData.timestamp).toString('base64').substring(0, 12)
     });
