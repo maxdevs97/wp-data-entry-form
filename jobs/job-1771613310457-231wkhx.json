@@ -1,0 +1,22 @@
+{
+  "jobId": "job-1771613310457-231wkhx",
+  "status": "pending",
+  "createdAt": "2026-02-20T18:48:30.457Z",
+  "updatedAt": "2026-02-20T18:48:30.457Z",
+  "submissionData": {
+    "sourceUrl": "https://old-site.com",
+    "destinationUrl": "https://new-site.com",
+    "contentTypeDisplay": "Certain Pages: about, contact",
+    "specialInstructions": "Test migration"
+  },
+  "progress": {
+    "stage": "pending",
+    "message": "Waiting to start...",
+    "percentComplete": 0,
+    "itemsProcessed": 0,
+    "itemsTotal": 0
+  },
+  "results": null,
+  "backupInfo": null,
+  "errors": []
+}

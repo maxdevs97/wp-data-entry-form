@@ -9,7 +9,10 @@ function validateRequest(data) {
     destinationUrl,
     wpUsername,
     wpPassword,
-    contentType
+    contentTypeCertainPages,
+    contentTypePostTypes,
+    certainPages,
+    postTypes
   } = data;
 
   // URL validation
@@ -30,8 +33,6 @@ function validateRequest(data) {
   }
 
   // Content type validation
-  const { contentTypeCertainPages, contentTypePostTypes, certainPages, postTypes } = data;
-  
   if (!contentTypeCertainPages && !contentTypePostTypes) {
     return { valid: false, error: 'At least one content type must be selected' };
   }
