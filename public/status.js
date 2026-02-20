@@ -75,7 +75,7 @@ async function pollJobStatus(jobId) {
     updateResultsUI(job);
     
     // Stop polling if job is complete or failed
-    if (job.status === 'complete' || job.status === 'failed') {
+    if (job.status === 'complete' || job.status === 'failed' || job.status === 'error') {
       console.log('🏁 Job finished. Stopping polling.');
       if (pollingInterval) {
         clearInterval(pollingInterval);
@@ -130,7 +130,7 @@ function updateResultsUI(job) {
     }
     
     // Handle failure
-    if (job.status === 'failed') {
+    if (job.status === 'failed' || job.status === 'error') {
       console.error('❌ Job failed! Showing errors...');
       showError(job);
     }
@@ -205,6 +205,17 @@ function showError(job) {
   }).join('');
   
   document.getElementById('errorDetails').innerHTML = errorHTML || '<p>An unknown error occurred.</p>';
+  
+  // Setup retry button listener
+  const retryButton = document.getElementById('retryButton');
+  if (retryButton && retryButton.parentNode) {
+    // Remove any existing listeners
+    const newRetryButton = retryButton.cloneNode(true);
+    retryButton.parentNode.replaceChild(newRetryButton, retryButton);
+    
+    // Add fresh listener
+    newRetryButton.addEventListener('click', () => handleRetry(job.jobId));
+  }
 }
 
 function showNotFoundScreen(message) {
@@ -264,19 +275,92 @@ function setupEventListeners() {
 
 function closeFeedbackModal() {
   const feedbackModal = document.getElementById('feedbackModal');
+  if (!feedbackModal) return;
+  
   feedbackModal.classList.remove('active');
   setTimeout(() => {
     feedbackModal.style.display = 'none';
-    document.getElementById('feedbackForm').reset();
+    const feedbackForm = document.getElementById('feedbackForm');
+    if (feedbackForm) feedbackForm.reset();
     hideMessage(document.getElementById('feedbackError'));
     hideMessage(document.getElementById('feedbackSuccess'));
   }, 300);
+}
+
+async function handleRetry(jobId) {
+  const retryButton = document.getElementById('retryButton');
+  if (!retryButton) {
+    console.error('Retry button not found');
+    return;
+  }
+  
+  const btnText = retryButton.querySelector('.btn-text');
+  const btnLoader = retryButton.querySelector('.btn-loader');
+  
+  // Disable button and show loading state
+  retryButton.disabled = true;
+  if (btnText) btnText.style.display = 'none';
+  if (btnLoader) btnLoader.style.display = 'inline';
+  
+  try {
+    console.log('🔄 Retrying job:', jobId);
+    
+    const response = await fetch('/api/retry', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ jobId })
+    });
+    
+    const data = await response.json();
+    
+    if (response.ok && data.success) {
+      console.log('✅ Retry successful! New job ID:', data.newJobId);
+      
+      // Show success message briefly
+      if (btnText) {
+        btnText.textContent = '✅ Retry Created!';
+        btnText.style.display = 'inline';
+      }
+      if (btnLoader) btnLoader.style.display = 'none';
+      
+      // Redirect to new job status page
+      setTimeout(() => {
+        window.location.href = `/status?jobId=${data.newJobId}`;
+      }, 1000);
+      
+    } else {
+      throw new Error(data.error || 'Failed to create retry');
+    }
+    
+  } catch (error) {
+    console.error('❌ Retry failed:', error);
+    
+    // Show error state
+    if (btnText) {
+      btnText.textContent = '❌ Retry Failed';
+      btnText.style.display = 'inline';
+    }
+    if (btnLoader) btnLoader.style.display = 'none';
+    
+    // Reset button after 3 seconds
+    setTimeout(() => {
+      if (btnText) btnText.textContent = '🔄 Retry Migration';
+      retryButton.disabled = false;
+    }, 3000);
+    
+    alert(`Failed to create retry: ${error.message}`);
+  }
 }
 
 async function handleFeedbackSubmit(e) {
   e.preventDefault();
   
   const submitBtn = e.target.querySelector('button[type="submit"]');
+  if (!submitBtn) {
+    console.error('Submit button not found');
+    return;
+  }
+  
   submitBtn.classList.add('loading');
   submitBtn.disabled = true;
   hideMessage(document.getElementById('feedbackError'));
