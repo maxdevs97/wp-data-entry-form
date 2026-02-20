@@ -1,32 +1,19 @@
-const fs = require('fs-extra');
-const path = require('path');
+const sheets = require('./sheets');
 
 /**
- * Job tracking manager
- * Stores job status and results in JSON files
+ * Job tracking manager - Google Sheets Edition
+ * Stores job status and results in Google Sheets for persistence across deployments
  */
-
-const JOBS_DIR = path.join(__dirname, '../jobs');
 
 class JobManager {
   constructor() {
-    // Ensure jobs directory exists on startup (fire and forget)
-    fs.ensureDir(JOBS_DIR).catch(err => {
-      console.error('Failed to create jobs directory:', err);
-    });
-  }
-
-  async ensureJobsDir() {
-    await fs.ensureDir(JOBS_DIR);
+    console.log('✅ JobManager initialized with Google Sheets backend');
   }
 
   /**
    * Create a new job
    */
   async createJob(submissionData) {
-    // Ensure directory exists before creating job
-    await this.ensureJobsDir();
-    
     const jobId = this.generateJobId();
     const job = {
       jobId,
@@ -53,25 +40,28 @@ class JobManager {
       errors: []
     };
 
-    await this.saveJob(job);
-    console.log(`✅ Job ${jobId} created and saved to disk`);
-    return job;
+    try {
+      await sheets.appendJob(job);
+      console.log(`✅ Job ${jobId} created and saved to Google Sheets`);
+      return job;
+    } catch (error) {
+      console.error(`❌ Failed to create job ${jobId}:`, error);
+      throw error;
+    }
   }
 
   /**
    * Update job status and progress
    */
   async updateJob(jobId, updates) {
-    const job = await this.getJob(jobId);
-    if (!job) {
-      throw new Error(`Job not found: ${jobId}`);
+    try {
+      const updatedJob = await sheets.updateJobRow(jobId, updates);
+      console.log(`✅ Job ${jobId} updated in Google Sheets`);
+      return updatedJob;
+    } catch (error) {
+      console.error(`❌ Failed to update job ${jobId}:`, error);
+      throw error;
     }
-
-    Object.assign(job, updates);
-    job.updatedAt = new Date().toISOString();
-
-    await this.saveJob(job);
-    return job;
   }
 
   /**
@@ -83,11 +73,13 @@ class JobManager {
       throw new Error(`Job not found: ${jobId}`);
     }
 
-    Object.assign(job.progress, progressUpdates);
-    job.updatedAt = new Date().toISOString();
+    // Merge progress updates
+    const updatedProgress = {
+      ...job.progress,
+      ...progressUpdates
+    };
 
-    await this.saveJob(job);
-    return job;
+    return await this.updateJob(jobId, { progress: updatedProgress });
   }
 
   /**
@@ -99,16 +91,19 @@ class JobManager {
       throw new Error(`Job not found: ${jobId}`);
     }
 
-    job.status = 'complete';
-    job.progress.stage = 'complete';
-    job.progress.message = 'Migration complete';
-    job.progress.percentComplete = 100;
-    job.results = results;
-    job.completedAt = new Date().toISOString();
-    job.updatedAt = new Date().toISOString();
+    const updates = {
+      status: 'complete',
+      progress: {
+        ...job.progress,
+        stage: 'complete',
+        message: 'Migration complete',
+        percentComplete: 100
+      },
+      results,
+      completedAt: new Date().toISOString()
+    };
 
-    await this.saveJob(job);
-    return job;
+    return await this.updateJob(jobId, updates);
   }
 
   /**
@@ -120,19 +115,24 @@ class JobManager {
       throw new Error(`Job not found: ${jobId}`);
     }
 
-    job.status = 'failed';
-    job.progress.stage = 'failed';
-    job.progress.message = 'Migration failed';
-    job.errors.push({
+    const errorObj = {
       timestamp: new Date().toISOString(),
       message: error.message || error,
       stack: error.stack
-    });
-    job.failedAt = new Date().toISOString();
-    job.updatedAt = new Date().toISOString();
+    };
 
-    await this.saveJob(job);
-    return job;
+    const updates = {
+      status: 'failed',
+      progress: {
+        ...job.progress,
+        stage: 'failed',
+        message: 'Migration failed'
+      },
+      errors: [...(job.errors || []), errorObj],
+      failedAt: new Date().toISOString()
+    };
+
+    return await this.updateJob(jobId, updates);
   }
 
   /**
@@ -144,29 +144,24 @@ class JobManager {
       throw new Error(`Job not found: ${jobId}`);
     }
 
-    job.backupInfo = backupInfo;
-    job.updatedAt = new Date().toISOString();
-
-    await this.saveJob(job);
-    return job;
+    return await this.updateJob(jobId, { backupInfo });
   }
 
   /**
    * Get job by ID
    */
   async getJob(jobId) {
-    const jobPath = path.join(JOBS_DIR, `${jobId}.json`);
-    
     try {
-      console.log(`🔍 Looking for job: ${jobId} at path: ${jobPath}`);
+      console.log(`🔍 Looking for job: ${jobId} in Google Sheets`);
       
-      if (await fs.pathExists(jobPath)) {
-        const job = await fs.readJson(jobPath);
-        console.log(`✅ Job ${jobId} found with status: ${job.status}`);
-        return job;
+      const jobData = await sheets.findJobRow(jobId);
+      
+      if (jobData) {
+        console.log(`✅ Job ${jobId} found with status: ${jobData.job.status}`);
+        return jobData.job;
       }
       
-      console.error(`❌ Job ${jobId} not found at path: ${jobPath}`);
+      console.error(`❌ Job ${jobId} not found in Google Sheets`);
       return null;
     } catch (error) {
       console.error(`❌ Error reading job ${jobId}:`, error);
@@ -175,52 +170,104 @@ class JobManager {
   }
 
   /**
-   * Save job to disk
+   * Save job to Google Sheets
+   * This is kept for backward compatibility, but updateJob is preferred
    */
   async saveJob(job) {
-    // Ensure directory exists before saving
-    await this.ensureJobsDir();
-    
-    const jobPath = path.join(JOBS_DIR, `${job.jobId}.json`);
-    
     try {
-      await fs.writeJson(jobPath, job, { spaces: 2 });
-      console.log(`💾 Job ${job.jobId} saved successfully to: ${jobPath}`);
+      // Check if job exists
+      const existingJob = await sheets.findJobRow(job.jobId);
       
-      // Verify the file was written
-      const exists = await fs.pathExists(jobPath);
-      if (!exists) {
-        throw new Error(`Job file not found after write: ${jobPath}`);
+      if (existingJob) {
+        // Update existing job
+        await sheets.updateJobRow(job.jobId, job);
+      } else {
+        // Append new job
+        await sheets.appendJob(job);
       }
+      
+      console.log(`💾 Job ${job.jobId} saved successfully to Google Sheets`);
     } catch (error) {
       console.error(`❌ Failed to save job ${job.jobId}:`, error);
-      throw error; // Re-throw to ensure caller knows about the failure
+      throw error;
     }
   }
 
   /**
    * List all jobs (newest first)
+   * Note: This is less efficient with Sheets, but kept for compatibility
    */
   async listJobs(limit = 50) {
-    await this.ensureJobsDir();
-    
-    const files = await fs.readdir(JOBS_DIR);
-    const jsonFiles = files.filter(f => f.endsWith('.json'));
-    
-    const jobs = [];
-    for (const file of jsonFiles) {
-      try {
-        const job = await fs.readJson(path.join(JOBS_DIR, file));
-        jobs.push(job);
-      } catch (error) {
-        console.error(`Error reading job file ${file}:`, error);
+    try {
+      const { sheets: sheetsApi, spreadsheetId } = await sheets.getJobsSheet();
+      
+      const response = await sheetsApi.spreadsheets.values.get({
+        spreadsheetId,
+        range: 'Jobs!A:M'
+      });
+
+      const rows = response.data.values || [];
+      const jobs = [];
+
+      // Skip header row
+      for (let i = 1; i < rows.length; i++) {
+        try {
+          const job = this.rowToJob(rows[i]);
+          jobs.push(job);
+        } catch (error) {
+          console.error(`Error parsing job row ${i}:`, error);
+        }
       }
+
+      // Sort by createdAt (newest first)
+      jobs.sort((a, b) => new Date(b.createdAt) - new Date(a.createdAt));
+
+      return jobs.slice(0, limit);
+    } catch (error) {
+      console.error('Error listing jobs:', error);
+      return [];
     }
+  }
 
-    // Sort by createdAt (newest first)
-    jobs.sort((a, b) => new Date(b.createdAt) - new Date(a.createdAt));
+  /**
+   * Convert sheet row to job object (helper for listJobs)
+   */
+  rowToJob(row) {
+    const [
+      jobId,
+      status,
+      stage,
+      progress,
+      itemsProcessed,
+      itemsTotal,
+      sourceUrl,
+      destinationUrl,
+      contentType,
+      createdAt,
+      updatedAt,
+      resultsJson,
+      errorMessage
+    ] = row;
 
-    return jobs.slice(0, limit);
+    return {
+      jobId,
+      status,
+      createdAt,
+      updatedAt,
+      submissionData: {
+        sourceUrl,
+        destinationUrl,
+        contentTypeDisplay: contentType
+      },
+      progress: {
+        stage,
+        percentComplete: parseInt(progress) || 0,
+        itemsProcessed: parseInt(itemsProcessed) || 0,
+        itemsTotal: parseInt(itemsTotal) || 0
+      },
+      results: resultsJson ? JSON.parse(resultsJson) : null,
+      errors: errorMessage ? [{ message: errorMessage }] : []
+    };
   }
 
   /**
@@ -233,24 +280,14 @@ class JobManager {
   }
 
   /**
-   * Clean old jobs (older than 30 days)
+   * Clean old jobs (older than X days)
+   * Note: This is more complex with Sheets and not implemented yet
+   * Jobs should be manually archived or cleaned via Sheet interface
    */
   async cleanOldJobs(daysToKeep = 30) {
-    const jobs = await this.listJobs(1000);
-    const cutoffDate = new Date();
-    cutoffDate.setDate(cutoffDate.getDate() - daysToKeep);
-
-    let cleaned = 0;
-    for (const job of jobs) {
-      const jobDate = new Date(job.createdAt);
-      if (jobDate < cutoffDate) {
-        const jobPath = path.join(JOBS_DIR, `${job.jobId}.json`);
-        await fs.remove(jobPath);
-        cleaned++;
-      }
-    }
-
-    return cleaned;
+    console.warn('cleanOldJobs not implemented for Google Sheets backend');
+    console.warn('Please manually archive old jobs in the Google Sheet');
+    return 0;
   }
 }
 

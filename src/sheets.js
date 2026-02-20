@@ -23,8 +23,330 @@ try {
   credentials = null;
 }
 
+// Cache for job reads (1 second TTL)
+const jobCache = new Map();
+const JOB_CACHE_TTL = 1000; // 1 second
+
 /**
- * Log submission to Google Sheet audit trail
+ * Get authenticated Google Sheets client
+ */
+function getAuthenticatedSheets() {
+  if (!credentials) {
+    throw new Error('Google credentials not available');
+  }
+
+  const auth = new google.auth.JWT({
+    email: credentials.client_email,
+    key: credentials.private_key,
+    scopes: ['https://www.googleapis.com/auth/spreadsheets'],
+    subject: 'max@sheragency.com' // Impersonate Max
+  });
+
+  return google.sheets({ version: 'v4', auth });
+}
+
+/**
+ * Get or create the Jobs sheet
+ */
+async function getJobsSheet() {
+  const sheets = getAuthenticatedSheets();
+  const spreadsheetId = process.env.GOOGLE_SHEET_ID;
+
+  if (!spreadsheetId) {
+    throw new Error('GOOGLE_SHEET_ID environment variable not set');
+  }
+
+  try {
+    // Check if Jobs sheet exists
+    const response = await sheets.spreadsheets.get({
+      spreadsheetId,
+      fields: 'sheets.properties'
+    });
+
+    const jobsSheet = response.data.sheets.find(
+      sheet => sheet.properties.title === 'Jobs'
+    );
+
+    if (jobsSheet) {
+      return { sheets, spreadsheetId, sheetId: jobsSheet.properties.sheetId };
+    }
+
+    // Create Jobs sheet if it doesn't exist
+    console.log('Creating Jobs sheet...');
+    await sheets.spreadsheets.batchUpdate({
+      spreadsheetId,
+      requestBody: {
+        requests: [{
+          addSheet: {
+            properties: {
+              title: 'Jobs',
+              gridProperties: {
+                frozenRowCount: 1
+              }
+            }
+          }
+        }]
+      }
+    });
+
+    // Add header row
+    const headers = [
+      'Job ID',
+      'Status',
+      'Stage',
+      'Progress',
+      'Items Processed',
+      'Total Items',
+      'Source URL',
+      'Destination URL',
+      'Content Type',
+      'Created At',
+      'Updated At',
+      'Results JSON',
+      'Error Message'
+    ];
+
+    await sheets.spreadsheets.values.update({
+      spreadsheetId,
+      range: 'Jobs!A1:M1',
+      valueInputOption: 'RAW',
+      requestBody: {
+        values: [headers]
+      }
+    });
+
+    console.log('✅ Jobs sheet created with headers');
+
+    // Get the newly created sheet ID
+    const updatedResponse = await sheets.spreadsheets.get({
+      spreadsheetId,
+      fields: 'sheets.properties'
+    });
+
+    const newJobsSheet = updatedResponse.data.sheets.find(
+      sheet => sheet.properties.title === 'Jobs'
+    );
+
+    return { sheets, spreadsheetId, sheetId: newJobsSheet.properties.sheetId };
+
+  } catch (error) {
+    console.error('Error getting/creating Jobs sheet:', error);
+    throw error;
+  }
+}
+
+/**
+ * Find a job row by Job ID
+ * Returns { rowIndex, job } or null if not found
+ */
+async function findJobRow(jobId) {
+  // Check cache first
+  const cached = jobCache.get(jobId);
+  if (cached && Date.now() - cached.timestamp < JOB_CACHE_TTL) {
+    return cached.data;
+  }
+
+  const { sheets, spreadsheetId } = await getJobsSheet();
+
+  try {
+    const response = await sheets.spreadsheets.values.get({
+      spreadsheetId,
+      range: 'Jobs!A:M'
+    });
+
+    const rows = response.data.values || [];
+    
+    // Skip header row
+    for (let i = 1; i < rows.length; i++) {
+      const row = rows[i];
+      if (row[0] === jobId) {
+        const job = rowToJob(row);
+        const result = { rowIndex: i + 1, job }; // +1 for 1-indexed sheets
+        
+        // Cache the result
+        jobCache.set(jobId, { timestamp: Date.now(), data: result });
+        
+        return result;
+      }
+    }
+
+    // Cache null result (job not found)
+    jobCache.set(jobId, { timestamp: Date.now(), data: null });
+    return null;
+
+  } catch (error) {
+    console.error(`Error finding job ${jobId}:`, error);
+    return null;
+  }
+}
+
+/**
+ * Convert sheet row to job object
+ */
+function rowToJob(row) {
+  const [
+    jobId,
+    status,
+    stage,
+    progress,
+    itemsProcessed,
+    itemsTotal,
+    sourceUrl,
+    destinationUrl,
+    contentType,
+    createdAt,
+    updatedAt,
+    resultsJson,
+    errorMessage
+  ] = row;
+
+  const job = {
+    jobId,
+    status,
+    createdAt,
+    updatedAt,
+    submissionData: {
+      sourceUrl,
+      destinationUrl,
+      contentTypeDisplay: contentType
+    },
+    progress: {
+      stage,
+      percentComplete: parseInt(progress) || 0,
+      itemsProcessed: parseInt(itemsProcessed) || 0,
+      itemsTotal: parseInt(itemsTotal) || 0,
+      message: getStageMessage(stage, parseInt(progress) || 0)
+    },
+    results: resultsJson ? JSON.parse(resultsJson) : null,
+    errors: errorMessage ? [{ message: errorMessage }] : []
+  };
+
+  return job;
+}
+
+/**
+ * Convert job object to sheet row
+ */
+function jobToRow(job) {
+  return [
+    job.jobId,
+    job.status,
+    job.progress.stage,
+    job.progress.percentComplete,
+    job.progress.itemsProcessed,
+    job.progress.itemsTotal,
+    job.submissionData.sourceUrl,
+    job.submissionData.destinationUrl,
+    job.submissionData.contentTypeDisplay || job.submissionData.contentType || 'N/A',
+    job.createdAt,
+    job.updatedAt,
+    job.results ? JSON.stringify(job.results) : '',
+    job.errors && job.errors.length > 0 ? job.errors[0].message : ''
+  ];
+}
+
+/**
+ * Get descriptive message for stage
+ */
+function getStageMessage(stage, progress) {
+  const messages = {
+    pending: 'Waiting to start...',
+    extracting: 'Extracting content from source site...',
+    transforming: 'Mapping content structure...',
+    inserting: 'Inserting content into destination...',
+    verifying: 'Verifying migration...',
+    complete: 'Migration complete',
+    failed: 'Migration failed',
+    error: 'An error occurred'
+  };
+  return messages[stage] || `Processing... ${progress}%`;
+}
+
+/**
+ * Append a new job to the Jobs sheet
+ */
+async function appendJob(job) {
+  const { sheets, spreadsheetId } = await getJobsSheet();
+
+  const row = jobToRow(job);
+
+  try {
+    await sheets.spreadsheets.values.append({
+      spreadsheetId,
+      range: 'Jobs!A:M',
+      valueInputOption: 'RAW',
+      insertDataOption: 'INSERT_ROWS',
+      requestBody: {
+        values: [row]
+      }
+    });
+
+    console.log(`✅ Job ${job.jobId} appended to Google Sheets`);
+    
+    // Invalidate cache for this job
+    jobCache.delete(job.jobId);
+    
+    return true;
+  } catch (error) {
+    console.error(`Error appending job ${job.jobId}:`, error);
+    throw error;
+  }
+}
+
+/**
+ * Update a job row in the Jobs sheet
+ */
+async function updateJobRow(jobId, updates) {
+  const jobData = await findJobRow(jobId);
+  
+  if (!jobData) {
+    throw new Error(`Job not found: ${jobId}`);
+  }
+
+  const { rowIndex, job } = jobData;
+  const { sheets, spreadsheetId } = await getJobsSheet();
+
+  // Merge updates
+  const updatedJob = {
+    ...job,
+    ...updates,
+    updatedAt: new Date().toISOString()
+  };
+
+  // Handle nested updates
+  if (updates.progress) {
+    updatedJob.progress = { ...job.progress, ...updates.progress };
+  }
+  if (updates.submissionData) {
+    updatedJob.submissionData = { ...job.submissionData, ...updates.submissionData };
+  }
+
+  const row = jobToRow(updatedJob);
+
+  try {
+    await sheets.spreadsheets.values.update({
+      spreadsheetId,
+      range: `Jobs!A${rowIndex}:M${rowIndex}`,
+      valueInputOption: 'RAW',
+      requestBody: {
+        values: [row]
+      }
+    });
+
+    console.log(`✅ Job ${jobId} updated in Google Sheets`);
+    
+    // Invalidate cache for this job
+    jobCache.delete(jobId);
+    
+    return updatedJob;
+  } catch (error) {
+    console.error(`Error updating job ${jobId}:`, error);
+    throw error;
+  }
+}
+
+/**
+ * Log submission to Google Sheet audit trail (Submissions sheet)
  */
 async function logToGoogleSheet(submissionData) {
   if (!credentials) {
@@ -33,14 +355,7 @@ async function logToGoogleSheet(submissionData) {
   }
 
   try {
-    const auth = new google.auth.JWT({
-      email: credentials.client_email,
-      key: credentials.private_key,
-      scopes: ['https://www.googleapis.com/auth/spreadsheets'],
-      subject: 'max@sheragency.com' // Impersonate Max
-    });
-
-    const sheets = google.sheets({ version: 'v4', auth });
+    const sheets = getAuthenticatedSheets();
     const spreadsheetId = process.env.GOOGLE_SHEET_ID;
 
     if (!spreadsheetId) {
@@ -159,5 +474,9 @@ async function appendToSheet(sheets, spreadsheetId, data) {
 }
 
 module.exports = {
-  logToGoogleSheet
+  logToGoogleSheet,
+  getJobsSheet,
+  findJobRow,
+  appendJob,
+  updateJobRow
 };
