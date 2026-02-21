@@ -253,11 +253,13 @@ async function processJob(jobId) {
     const itemsTotal = manifest.total_items || 0;
     
     logger.info(`Found ${itemsTotal} items to migrate`);
+    logger.success(`✅ Cataloged ${itemsTotal} items`);
     await safeUpdateProgress(jobId, {
       stage: 'extracting',
-      message: `Extracting ${itemsTotal} items from source...`,
+      message: `Cataloged ${itemsTotal} items, now extracting...`,
       percentComplete: 15,
-      itemsTotal
+      itemsTotal,
+      itemsCataloged: itemsTotal
     });
     
     const extractResults = await extractor.extractAll();

@@ -89,6 +89,15 @@
           <section class="results-section error-section" id="errorSection" style="display: none;">
             <h2>❌ Migration Failed</h2>
             <div id="errorDetails" class="error-details"></div>
+            <div class="retry-action" style="margin-top: 24px;">
+              <button id="retryButton" class="btn btn-primary">
+                <span class="btn-text">🔄 Retry Migration</span>
+                <span class="btn-loader" style="display: none;">●●●</span>
+              </button>
+              <p style="margin-top: 12px; color: var(--text-secondary); font-size: 14px;">
+                This will create a new migration job with the same settings
+              </p>
+            </div>
           </section>
 
           <section class="results-section" id="feedbackSection" style="display: none;">

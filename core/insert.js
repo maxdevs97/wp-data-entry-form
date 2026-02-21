@@ -145,7 +145,7 @@ class ContentInserter {
       
       this.logger.info(`Result saved: ${resultPath}`);
       
-      return { result, resultPath };
+      return { success: true, result, resultPath };
     } catch (error) {
       this.logger.error(`Failed to insert: ${transformedPath}`, {
         error: error.message,

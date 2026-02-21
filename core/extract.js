@@ -56,12 +56,17 @@ class ContentExtractor {
             per_page: 100
           };
           
-          // Only request non-published posts if authenticated with valid credentials
+          // Only request published posts by default (unless specifically configured otherwise)
+          // This prevents pulling drafts, pending, or trashed posts that inflate the count
+          const allowedStatuses = this.config.migration_settings?.post_status || ['publish'];
           if (this.extractionMode === 'authenticated' && 
               this.config.source.auth && 
               this.config.source.auth.method &&
-              this.config.source.auth.method !== 'none') {
-            params.status = 'publish,draft,pending';
+              this.config.source.auth.method !== 'none' &&
+              allowedStatuses.length > 1) {
+            params.status = allowedStatuses.join(',');
+          } else {
+            params.status = 'publish'; // Default to published posts only
           }
           
           try {
