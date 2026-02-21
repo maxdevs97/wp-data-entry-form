@@ -209,8 +209,8 @@ async function findJobRow(jobId) {
       }
     }
 
-    // Cache null result (job not found)
-    jobCache.set(jobId, { timestamp: Date.now(), data: null });
+    // DON'T cache null results - this causes race conditions when jobs are just created
+    // If the job doesn't exist yet, the next call will check again
     return null;
 
   } catch (error) {
