@@ -133,7 +133,8 @@ async function getJobsSheet() {
       'Created At',
       'Updated At',
       'Results JSON',
-      'Error Message'
+      'Error Message',
+      'Submission Data JSON' // Column N: Full submission data for migration config
     ];
 
     await sheets.spreadsheets.values.update({
@@ -189,7 +190,7 @@ async function findJobRow(jobId) {
     const response = await retryWithBackoff(async () => {
       return await sheets.spreadsheets.values.get({
         spreadsheetId,
-        range: 'Jobs!A:M'
+        range: 'Jobs!A:N'
       });
     });
 
@@ -236,19 +237,38 @@ function rowToJob(row) {
     createdAt,
     updatedAt,
     resultsJson,
-    errorMessage
+    errorMessage,
+    submissionDataJson // Column N: Full submission data
   ] = row;
+
+  // Parse full submissionData from JSON if available (column N), otherwise fallback to basic fields
+  let submissionData;
+  try {
+    if (submissionDataJson) {
+      submissionData = JSON.parse(submissionDataJson);
+    } else {
+      // Fallback for old rows without column N
+      submissionData = {
+        sourceUrl,
+        destinationUrl,
+        contentTypeDisplay: contentType
+      };
+    }
+  } catch (parseError) {
+    console.warn('Failed to parse submissionDataJson, using fallback:', parseError.message);
+    submissionData = {
+      sourceUrl,
+      destinationUrl,
+      contentTypeDisplay: contentType
+    };
+  }
 
   const job = {
     jobId,
     status,
     createdAt,
     updatedAt,
-    submissionData: {
-      sourceUrl,
-      destinationUrl,
-      contentTypeDisplay: contentType
-    },
+    submissionData, // Use parsed submissionData with all fields
     progress: {
       stage,
       percentComplete: parseInt(progress) || 0,
@@ -280,7 +300,8 @@ function jobToRow(job) {
     job.createdAt,
     job.updatedAt,
     job.results ? JSON.stringify(job.results) : '',
-    job.errors && job.errors.length > 0 ? job.errors[0].message : ''
+    job.errors && job.errors.length > 0 ? job.errors[0].message : '',
+    JSON.stringify(job.submissionData) // Column N: Full submission data for processor
   ];
 }
 
@@ -313,7 +334,7 @@ async function appendJob(job) {
     await retryWithBackoff(async () => {
       return await sheets.spreadsheets.values.append({
         spreadsheetId,
-        range: 'Jobs!A:M',
+        range: 'Jobs!A:N',
         valueInputOption: 'RAW',
         insertDataOption: 'INSERT_ROWS',
         requestBody: {
