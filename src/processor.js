@@ -101,11 +101,11 @@ function createMigrationConfig(submissionData, jobId) {
   
   // Determine content types based on form data
   if (submissionData.contentTypeCertainPages) {
-    // If certain pages specified, extract specific pages
-    config.migration_settings.content_types.push('page');
-    
     // Parse page paths/IDs from the certainPages array
     if (submissionData.certainPages && submissionData.certainPages.length > 0) {
+      // ONLY add 'page' to content_types if pages are actually specified
+      config.migration_settings.content_types.push('page');
+      
       submissionData.certainPages.forEach(pagePath => {
         // Check if it's a numeric ID or a slug/path
         const trimmedPath = pagePath.trim();
