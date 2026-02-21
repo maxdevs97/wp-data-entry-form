@@ -144,9 +144,19 @@ function createMigrationConfig(submissionData, jobId) {
     }
   }
   
+  // [DEBUG] Log content types before defaulting
+  console.log('[PROCESSOR-DEBUG] Content types before default:', config.migration_settings.content_types);
+  console.log('[PROCESSOR-DEBUG] contentTypeCertainPages:', submissionData.contentTypeCertainPages);
+  console.log('[PROCESSOR-DEBUG] certainPages:', submissionData.certainPages);
+  console.log('[PROCESSOR-DEBUG] contentTypePostTypes:', submissionData.contentTypePostTypes);
+  console.log('[PROCESSOR-DEBUG] postTypes:', submissionData.postTypes);
+  
   // Default to 'post' and 'page' if nothing specified
   if (config.migration_settings.content_types.length === 0) {
+    console.log('[PROCESSOR-DEBUG] Content types array is empty, applying default: [post, page]');
     config.migration_settings.content_types = ['post', 'page'];
+  } else {
+    console.log('[PROCESSOR-DEBUG] Content types array has items:', config.migration_settings.content_types);
   }
   
   // Create working directories with validation
