@@ -11,9 +11,9 @@ class ContentVerifier {
     this.logger = logger || new Logger();
     this.sourceAPI = new WordPressAPIClient(config.source, this.logger);
     this.destAPI = new WordPressAPIClient(config.destination, this.logger);
-    this.snapshotDir = './content-snapshots';
-    this.resultsDir = './insertion-results';
-    this.qaDir = './qa-reports';
+    this.snapshotDir = config.directories?.snapshots || './content-snapshots';
+    this.resultsDir = config.directories?.results || './insertion-results';
+    this.qaDir = config.directories?.qa_reports || './qa-reports';
     
     fs.ensureDirSync(this.qaDir);
   }

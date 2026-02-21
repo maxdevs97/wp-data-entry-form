@@ -10,8 +10,8 @@ class ContentInserter {
     this.logger = logger || new Logger();
     this.destAPI = new WordPressAPIClient(config.destination, this.logger);
     this.mediaHandler = new MediaHandler(config, this.logger);
-    this.transformedDir = './transformed-content';
-    this.resultsDir = './insertion-results';
+    this.transformedDir = config.directories?.transformed || './transformed-content';
+    this.resultsDir = config.directories?.results || './insertion-results';
     
     // Cache for created taxonomy terms
     this.taxonomyCache = {

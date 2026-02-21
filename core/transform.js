@@ -6,8 +6,8 @@ class ContentTransformer {
   constructor(config, logger = null) {
     this.config = config;
     this.logger = logger || new Logger();
-    this.snapshotDir = './content-snapshots';
-    this.transformedDir = './transformed-content';
+    this.snapshotDir = config.directories?.snapshots || './content-snapshots';
+    this.transformedDir = config.directories?.transformed || './transformed-content';
     
     fs.ensureDirSync(this.transformedDir);
   }
