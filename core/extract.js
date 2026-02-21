@@ -23,6 +23,14 @@ class ContentExtractor {
   async catalogSite() {
     this.logger.info(`Starting site cataloging (mode: ${this.extractionMode})...`);
     
+    // [EXTRACT-DEBUG] Log the source URL being queried
+    console.log('[EXTRACT-DEBUG] ========== CATALOG START ==========');
+    console.log('[EXTRACT-DEBUG] Source URL:', this.config.source.url);
+    console.log('[EXTRACT-DEBUG] Extraction Mode:', this.extractionMode);
+    console.log('[EXTRACT-DEBUG] REST Endpoint Base:', this.config.source.rest_endpoint);
+    console.log('[EXTRACT-DEBUG] Content Types to Query:', this.config.migration_settings.content_types);
+    console.log('[EXTRACT-DEBUG] ====================================');
+    
     const manifest = {
       source_url: this.config.source.url,
       extraction_mode: this.extractionMode,
@@ -69,19 +77,35 @@ class ContentExtractor {
             params.status = 'publish'; // Default to published posts only
           }
           
-          // DEBUG: Log what we're requesting
-          this.logger.info(`[DEBUG] API Request: ${endpoint}`);
-          this.logger.info(`[DEBUG] Params: ${JSON.stringify(params)}`);
-          this.logger.info(`[DEBUG] Extraction mode: ${this.extractionMode}`);
-          this.logger.info(`[DEBUG] Auth method: ${this.config.source.auth?.method || 'none'}`);
+          // [EXTRACT-DEBUG] Log what we're requesting
+          console.log(`[EXTRACT-DEBUG] ===== ${contentType.toUpperCase()} - PAGE ${page} =====`);
+          console.log('[EXTRACT-DEBUG] Full URL:', `${endpoint}?${new URLSearchParams(params).toString()}`);
+          console.log('[EXTRACT-DEBUG] Endpoint:', endpoint);
+          console.log('[EXTRACT-DEBUG] Params:', JSON.stringify(params, null, 2));
+          console.log('[EXTRACT-DEBUG] Extraction mode:', this.extractionMode);
+          console.log('[EXTRACT-DEBUG] Auth method:', this.config.source.auth?.method || 'none');
+          console.log('[EXTRACT-DEBUG] Allowed statuses:', allowedStatuses);
           
           try {
             const batch = await this.sourceAPI.get(endpoint, params);
             
-            // DEBUG: Log what we got back
-            this.logger.info(`[DEBUG] Received ${batch.length} items on page ${page}`);
+            // [EXTRACT-DEBUG] Log what we got back
+            console.log('[EXTRACT-DEBUG] ===== RESPONSE =====');
+            console.log(`[EXTRACT-DEBUG] Received ${batch.length} items on page ${page}`);
+            console.log(`[EXTRACT-DEBUG] Response type: ${Array.isArray(batch) ? 'array' : typeof batch}`);
+            
             if (batch.length > 0) {
-              this.logger.info(`[DEBUG] First item: id=${batch[0].id}, status=${batch[0].status}, title=${batch[0].title?.rendered}`);
+              console.log(`[EXTRACT-DEBUG] First item: id=${batch[0].id}, status=${batch[0].status}, title="${batch[0].title?.rendered}"`);
+              console.log(`[EXTRACT-DEBUG] Last item: id=${batch[batch.length - 1].id}, status=${batch[batch.length - 1].status}, title="${batch[batch.length - 1].title?.rendered}"`);
+              
+              // Log all post statuses in this batch
+              const statusCounts = {};
+              batch.forEach(item => {
+                statusCounts[item.status] = (statusCounts[item.status] || 0) + 1;
+              });
+              console.log('[EXTRACT-DEBUG] Status breakdown in batch:', JSON.stringify(statusCounts, null, 2));
+            } else {
+              console.log('[EXTRACT-DEBUG] Empty batch - pagination complete');
             }
             
             if (batch.length === 0) {
@@ -91,37 +115,77 @@ class ContentExtractor {
               page++;
             }
           } catch (error) {
+            console.log('[EXTRACT-DEBUG] ===== ERROR OCCURRED =====');
+            console.log('[EXTRACT-DEBUG] Error status:', error.response?.status);
+            console.log('[EXTRACT-DEBUG] Error code:', error.response?.data?.code);
+            console.log('[EXTRACT-DEBUG] Error message:', error.message);
+            console.log('[EXTRACT-DEBUG] ==========================');
+            
             // Handle "invalid page number" error - this means we've reached the end
             if (error.response?.status === 400 && error.response?.data?.code === 'rest_post_invalid_page_number') {
+              console.log('[EXTRACT-DEBUG] End of pagination reached (invalid page number)');
               hasMore = false;
             } else if (error.response?.status === 400 && error.response?.data?.code === 'rest_invalid_param' && 
                        originalExtractionMode === 'authenticated' && params.status) {
               // Auth failed when trying to get non-public posts - retry without auth params
+              console.log('[EXTRACT-DEBUG] Auth failure detected - retrying without authentication');
               this.logger.warn('Authenticated extraction failed, retrying without authentication');
               this.extractionMode = 'unauthenticated';
               delete params.status;
               return await this.catalogSite(); // Retry with unauthenticated mode
             } else {
               // Re-throw other errors
+              console.log('[EXTRACT-DEBUG] Unhandled error - rethrowing');
               throw error;
             }
           }
         }
         
-        // DEBUG: Log pre-filter count
-        this.logger.info(`[DEBUG] Total items before filtering: ${items.length}`);
-        items.forEach((item, idx) => {
-          if (idx < 5) { // Log first 5 items
-            this.logger.info(`[DEBUG] Item ${idx + 1}: id=${item.id}, status=${item.status}, title=${item.title?.rendered}`);
-          }
+        // [EXTRACT-DEBUG] Log pre-filter count and details
+        console.log('[EXTRACT-DEBUG] ===== PRE-FILTER ANALYSIS =====');
+        console.log(`[EXTRACT-DEBUG] Total ${contentType}s collected from API: ${items.length}`);
+        
+        // Count by status
+        const preFilterStatusCounts = {};
+        items.forEach(item => {
+          preFilterStatusCounts[item.status] = (preFilterStatusCounts[item.status] || 0) + 1;
         });
+        console.log('[EXTRACT-DEBUG] Status breakdown (pre-filter):', JSON.stringify(preFilterStatusCounts, null, 2));
+        
+        // Log first 5 items
+        console.log('[EXTRACT-DEBUG] Sample items (first 5):');
+        items.slice(0, 5).forEach((item, idx) => {
+          console.log(`[EXTRACT-DEBUG]   ${idx + 1}. id=${item.id}, status="${item.status}", title="${item.title?.rendered}"`);
+        });
+        
+        // Log exclusion config
+        console.log('[EXTRACT-DEBUG] Exclusion config:', JSON.stringify(this.config.exclusions || {}, null, 2));
         
         // Filter out excluded items
         const itemsBeforeFilter = items.length;
         items = this.filterExcludedItems(items, contentType);
         
-        // DEBUG: Log post-filter count
-        this.logger.info(`[DEBUG] Items after filtering: ${items.length} (removed ${itemsBeforeFilter - items.length})`);
+        // [EXTRACT-DEBUG] Log post-filter count
+        console.log('[EXTRACT-DEBUG] ===== POST-FILTER ANALYSIS =====');
+        console.log(`[EXTRACT-DEBUG] Items after filtering: ${items.length} (removed ${itemsBeforeFilter - items.length})`);
+        
+        if (items.length !== itemsBeforeFilter) {
+          // Log which items were filtered out
+          const preFilterIds = new Set(items.map(item => item.id));
+          const removedItems = items.filter(item => !preFilterIds.has(item.id));
+          console.log('[EXTRACT-DEBUG] Filtered out items:', removedItems.map(item => ({
+            id: item.id,
+            title: item.title?.rendered,
+            status: item.status
+          })));
+        }
+        
+        // Count by status after filtering
+        const postFilterStatusCounts = {};
+        items.forEach(item => {
+          postFilterStatusCounts[item.status] = (postFilterStatusCounts[item.status] || 0) + 1;
+        });
+        console.log('[EXTRACT-DEBUG] Status breakdown (post-filter):', JSON.stringify(postFilterStatusCounts, null, 2));
         
         manifest.content_types[contentType] = {
           count: items.length,
@@ -137,6 +201,10 @@ class ContentExtractor {
         
         manifest.total_items += items.length;
         
+        console.log(`[EXTRACT-DEBUG] ===== CONTENT TYPE COMPLETE: ${contentType.toUpperCase()} =====`);
+        console.log(`[EXTRACT-DEBUG] Final count for ${contentType}: ${items.length}`);
+        console.log('[EXTRACT-DEBUG] ================================================\n');
+        
         this.logger.success(`Found ${items.length} ${contentType}s`);
       } catch (error) {
         this.logger.error(`Failed to catalog ${contentType}s`, { error: error.message });
@@ -146,6 +214,16 @@ class ContentExtractor {
     // Save manifest
     const manifestPath = path.join(this.snapshotDir, 'source-site-manifest.json');
     fs.writeJsonSync(manifestPath, manifest, { spaces: 2 });
+    
+    // [EXTRACT-DEBUG] Final summary
+    console.log('[EXTRACT-DEBUG] ========== CATALOG COMPLETE ==========');
+    console.log('[EXTRACT-DEBUG] Total items found:', manifest.total_items);
+    console.log('[EXTRACT-DEBUG] Content types breakdown:');
+    Object.entries(manifest.content_types).forEach(([type, data]) => {
+      console.log(`[EXTRACT-DEBUG]   ${type}: ${data.count} items`);
+    });
+    console.log('[EXTRACT-DEBUG] Manifest saved to:', manifestPath);
+    console.log('[EXTRACT-DEBUG] ======================================\n');
     
     this.logger.success(`Catalog complete: ${manifest.total_items} items found`);
     this.logger.info(`Manifest saved to: ${manifestPath}`);
@@ -247,14 +325,25 @@ class ContentExtractor {
   filterExcludedItems(items, contentType) {
     const exclusions = this.config.exclusions || {};
     
-    return items.filter(item => {
+    console.log('[EXTRACT-DEBUG] ===== FILTERING ITEMS =====');
+    console.log('[EXTRACT-DEBUG] Items to filter:', items.length);
+    console.log('[EXTRACT-DEBUG] Exclusions config:', JSON.stringify(exclusions, null, 2));
+    
+    let excludedByIdCount = 0;
+    let excludedByStatusCount = 0;
+    
+    const filtered = items.filter(item => {
       // Exclude by ID
       if (exclusions.post_ids && exclusions.post_ids.includes(item.id)) {
+        excludedByIdCount++;
+        console.log(`[EXTRACT-DEBUG] Excluded by ID: ${item.id} - "${item.title?.rendered}"`);
         return false;
       }
       
       // Exclude by status
       if (exclusions.post_status && exclusions.post_status.includes(item.status)) {
+        excludedByStatusCount++;
+        console.log(`[EXTRACT-DEBUG] Excluded by status "${item.status}": ${item.id} - "${item.title?.rendered}"`);
         return false;
       }
       
@@ -262,6 +351,15 @@ class ContentExtractor {
       
       return true;
     });
+    
+    console.log('[EXTRACT-DEBUG] Filtering summary:');
+    console.log(`[EXTRACT-DEBUG]   Excluded by ID: ${excludedByIdCount}`);
+    console.log(`[EXTRACT-DEBUG]   Excluded by status: ${excludedByStatusCount}`);
+    console.log(`[EXTRACT-DEBUG]   Total excluded: ${items.length - filtered.length}`);
+    console.log(`[EXTRACT-DEBUG]   Remaining items: ${filtered.length}`);
+    console.log('[EXTRACT-DEBUG] ==========================\n');
+    
+    return filtered;
   }
 
   async extractContent(itemId, contentType = 'post') {
