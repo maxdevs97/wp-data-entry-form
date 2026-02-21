@@ -149,9 +149,20 @@ function createMigrationConfig(submissionData, jobId) {
     config.migration_settings.content_types = ['post', 'page'];
   }
   
-  // Create working directories
-  Object.values(config.directories).forEach(dir => {
-    fs.ensureDirSync(dir);
+  // Create working directories with validation
+  Object.entries(config.directories).forEach(([name, dir]) => {
+    try {
+      fs.ensureDirSync(dir);
+      
+      // Validate directory was actually created
+      if (!fs.existsSync(dir)) {
+        throw new Error(`Failed to create directory: ${dir}`);
+      }
+      
+      console.log(`✅ Created directory: ${name} → ${dir}`);
+    } catch (error) {
+      throw new Error(`Failed to create ${name} directory at ${dir}: ${error.message}`);
+    }
   });
   
   return config;
@@ -297,9 +308,11 @@ async function processJob(jobId) {
     const insertTotal = transformedFiles.length;
     let insertedCount = 0;
     const migratedPosts = [];
+    const insertionErrors = [];
     
     for (let i = 0; i < transformedFiles.length; i++) {
       const filePath = transformedFiles[i];
+      const fileName = path.basename(filePath);
       const progressPercent = 45 + Math.floor((i / insertTotal) * 35); // 45% -> 80%
       
       await safeUpdateProgress(jobId, {
@@ -324,16 +337,47 @@ async function processJob(jobId) {
             destinationUrl: result.url || config.destination.url,
             status: 'success'
           });
+          
+          logger.info(`✅ Inserted: ${transformed.title || fileName}`);
+        } else {
+          // Insertion returned but was not successful
+          insertionErrors.push({
+            file: fileName,
+            error: result?.error || 'Insert returned unsuccessful result',
+            timestamp: new Date().toISOString()
+          });
+          logger.error(`❌ Failed to insert ${fileName}: ${result?.error || 'Unknown error'}`);
         }
       } catch (insertError) {
-        logger.error(`Failed to insert ${path.basename(filePath)}`, { error: insertError.message });
+        // Insertion threw an exception
+        insertionErrors.push({
+          file: fileName,
+          error: insertError.message,
+          stack: insertError.stack,
+          timestamp: new Date().toISOString()
+        });
+        logger.error(`❌ Exception inserting ${fileName}: ${insertError.message}`);
       }
     }
     
-    logger.success(`✅ Inserted ${insertedCount}/${insertTotal} items`);
+    logger.info(`\n📊 INSERTION RESULTS:`);
+    logger.info(`  Total: ${insertTotal}`);
+    logger.info(`  Succeeded: ${insertedCount}`);
+    logger.info(`  Failed: ${insertTotal - insertedCount}`);
+    
+    if (insertionErrors.length > 0) {
+      logger.warn(`\n⚠️ Insertion Errors (${insertionErrors.length}):`);
+      insertionErrors.slice(0, 10).forEach((err, idx) => {
+        logger.warn(`  ${idx + 1}. ${err.file}: ${err.error}`);
+      });
+      if (insertionErrors.length > 10) {
+        logger.warn(`  ... and ${insertionErrors.length - 10} more errors`);
+      }
+    }
+    
     await safeUpdateProgress(jobId, {
       stage: 'inserting',
-      message: `Inserted ${insertedCount} items successfully`,
+      message: `Inserted ${insertedCount}/${insertTotal} items`,
       percentComplete: 80,
       itemsProcessed: insertedCount
     });
@@ -364,6 +408,27 @@ async function processJob(jobId) {
     
     // Stage 5: Complete with results
     logger.info('\n🎉 STAGE 5: COMPLETION');
+    
+    // CRITICAL: Validate migration success before marking as complete
+    if (insertedCount === 0 && itemsTotal > 0) {
+      const error = new Error(`Migration completed but 0 items migrated successfully (0/${itemsTotal}). All items failed to insert.`);
+      error.timestamp = new Date().toISOString();
+      error.stage = 'insertion';
+      error.details = {
+        extractedCount,
+        transformedCount,
+        insertedCount: 0,
+        failedCount: itemsTotal
+      };
+      error.suggestion = 'Check destination site credentials, permissions, and WordPress REST API availability. Review log file for specific insertion errors.';
+      
+      logger.error('❌ MIGRATION FAILED: Zero successful insertions');
+      logger.error(`Attempted: ${itemsTotal} items`);
+      logger.error(`Succeeded: 0 items`);
+      logger.error(`Failed: ${itemsTotal} items`);
+      
+      throw error;
+    }
     
     const startTime = new Date(job.createdAt);
     const endTime = new Date();
@@ -402,16 +467,50 @@ async function processJob(jobId) {
   } catch (error) {
     console.error(`❌ Job ${jobId} failed:`, error);
     
+    // Enhance error with additional context
+    const enhancedError = {
+      message: error.message || 'Unknown error',
+      stack: error.stack,
+      timestamp: error.timestamp || new Date().toISOString(),
+      stage: error.stage || 'unknown',
+      suggestion: error.suggestion || 'Check log file for details',
+      details: error.details || {}
+    };
+    
     if (logger) {
       logger.error('=================================');
       logger.error('❌ MIGRATION FAILED');
       logger.error('=================================');
-      logger.error(`Error: ${error.message}`);
-      logger.error(`Stack: ${error.stack}`);
+      logger.error(`Error: ${enhancedError.message}`);
+      logger.error(`Stage: ${enhancedError.stage}`);
+      logger.error(`Time: ${enhancedError.timestamp}`);
+      
+      if (enhancedError.details && Object.keys(enhancedError.details).length > 0) {
+        logger.error('Details:');
+        Object.entries(enhancedError.details).forEach(([key, value]) => {
+          logger.error(`  ${key}: ${value}`);
+        });
+      }
+      
+      if (enhancedError.suggestion) {
+        logger.error(`\n💡 Suggestion: ${enhancedError.suggestion}`);
+      }
+      
+      logger.error(`\nStack: ${enhancedError.stack}`);
       logger.error('=================================');
     }
     
-    await jobManager.failJob(jobId, error);
+    // Ensure job is marked as failed (not complete)
+    try {
+      await jobManager.failJob(jobId, enhancedError);
+      console.log(`✅ Job ${jobId} marked as FAILED in database`);
+    } catch (failError) {
+      console.error(`❌ Failed to mark job ${jobId} as failed:`, failError);
+      // Even if we can't update the database, log the failure
+    }
+    
+    // Re-throw to ensure calling code knows this failed
+    throw error;
   }
 }
 
