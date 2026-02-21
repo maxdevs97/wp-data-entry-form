@@ -39,18 +39,18 @@ app.get('/status', (req, res) => {
   res.sendFile(path.join(__dirname, '../public/status.html'));
 });
 
-// Rate limiting: 3 requests per IP per day
-const submissionLimiter = rateLimit({
-  windowMs: 24 * 60 * 60 * 1000, // 24 hours
-  max: 3,
-  message: { error: 'Rate limit exceeded. Maximum 3 requests per day.' },
-  standardHeaders: true,
-  legacyHeaders: false,
-  keyGenerator: (req) => {
-    // Use IP address as the rate limit key
-    return req.ip;
-  }
-});
+// Rate limiting: DISABLED for testing
+// const submissionLimiter = rateLimit({
+//   windowMs: 24 * 60 * 60 * 1000, // 24 hours
+//   max: 3,
+//   message: { error: 'Rate limit exceeded. Maximum 3 requests per day.' },
+//   standardHeaders: true,
+//   legacyHeaders: false,
+//   keyGenerator: (req) => {
+//     // Use IP address as the rate limit key
+//     return req.ip;
+//   }
+// });
 
 // Password check middleware
 const checkPassword = (req, res, next) => {
@@ -159,6 +159,89 @@ app.post('/api/feedback', async (req, res) => {
   }
 });
 
+// Retry failed migration endpoint
+app.post('/api/retry', async (req, res) => {
+  try {
+    const { jobId } = req.body;
+    
+    if (!jobId) {
+      return res.status(400).json({ error: 'Job ID is required' });
+    }
+    
+    console.log(`🔄 Retry request for job: ${jobId}`);
+    
+    // Retrieve the original job
+    const originalJob = await jobManager.getJob(jobId);
+    
+    if (!originalJob) {
+      return res.status(404).json({ error: 'Original job not found' });
+    }
+    
+    // Only allow retry for failed jobs
+    if (originalJob.status !== 'failed' && originalJob.status !== 'error') {
+      return res.status(400).json({ 
+        error: 'Can only retry failed jobs',
+        currentStatus: originalJob.status
+      });
+    }
+    
+    console.log(`✅ Found original job. Creating new job with same parameters...`);
+    
+    // Extract original submission data (with all settings preserved)
+    const retrySubmissionData = {
+      ...originalJob.submissionData,
+      timestamp: new Date().toISOString(),
+      status: 'Pending Review',
+      retryOf: jobId // Track that this is a retry
+    };
+    
+    // Create new job
+    const newJob = await jobManager.createJob(retrySubmissionData);
+    console.log(`✅ Retry job created: ${newJob.jobId}`);
+    
+    // Verify job can be retrieved
+    const verifyJob = await jobManager.getJob(newJob.jobId);
+    if (!verifyJob) {
+      console.error(`❌ CRITICAL: Retry job ${newJob.jobId} cannot be retrieved!`);
+      throw new Error('Job creation failed - file system error');
+    }
+    
+    // Start background processing
+    processJob(newJob.jobId).catch(err => {
+      console.error(`❌ Background retry job ${newJob.jobId} processing error:`, err);
+    });
+    
+    // Add to Kit's backlog
+    await addToKitBacklog({ 
+      ...retrySubmissionData, 
+      jobId: newJob.jobId,
+      specialInstructions: `[RETRY of ${jobId}] ${retrySubmissionData.specialInstructions || 'None'}`
+    });
+    
+    // Log to Google Sheet
+    const safeSubmissionData = { ...retrySubmissionData };
+    delete safeSubmissionData.wpUsername;
+    delete safeSubmissionData.wpPassword;
+    await logToGoogleSheet({ ...safeSubmissionData, jobId: newJob.jobId });
+    
+    console.log(`✅ Retry successful. New job ID: ${newJob.jobId}`);
+    
+    res.json({
+      success: true,
+      message: 'Retry migration created successfully',
+      newJobId: newJob.jobId,
+      originalJobId: jobId
+    });
+    
+  } catch (error) {
+    console.error('Retry error:', error);
+    res.status(500).json({ 
+      error: 'Failed to create retry migration',
+      details: process.env.NODE_ENV === 'development' ? error.message : undefined
+    });
+  }
+});
+
 // Restore backup endpoint
 app.post('/api/restore/:jobId', checkPassword, async (req, res) => {
   try {
@@ -204,7 +287,7 @@ app.post('/api/restore/:jobId', checkPassword, async (req, res) => {
 });
 
 // Main submission endpoint
-app.post('/api/submit', submissionLimiter, checkPassword, async (req, res) => {
+app.post('/api/submit', checkPassword, async (req, res) => {
   try {
     const {
       sourceUrl,
