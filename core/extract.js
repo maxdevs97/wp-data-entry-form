@@ -12,7 +12,7 @@ class ContentExtractor {
     this.logger = logger || new Logger();
     this.sourceAPI = new WordPressAPIClient(config.source, this.logger);
     this.mediaHandler = new MediaHandler(config, this.logger);
-    this.snapshotDir = './content-snapshots';
+    this.snapshotDir = config.directories?.snapshots || './content-snapshots';
     
     // Extraction mode: 'authenticated' or 'frontend'
     this.extractionMode = config.extraction_mode || 'authenticated';
