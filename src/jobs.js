@@ -20,14 +20,7 @@ class JobManager {
       status: 'pending', // pending | running | complete | failed
       createdAt: new Date().toISOString(),
       updatedAt: new Date().toISOString(),
-      submissionData: {
-        requesterName: submissionData.requesterName,
-        requesterEmail: submissionData.requesterEmail,
-        sourceUrl: submissionData.sourceUrl,
-        destinationUrl: submissionData.destinationUrl,
-        contentTypeDisplay: submissionData.contentTypeDisplay,
-        specialInstructions: submissionData.specialInstructions
-      },
+      submissionData: submissionData, // Store FULL submission data (needed for migration config)
       progress: {
         stage: 'pending', // pending | extracting | transforming | inserting | verifying | complete
         message: 'Waiting to start...',
