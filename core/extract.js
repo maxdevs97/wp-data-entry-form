@@ -69,8 +69,20 @@ class ContentExtractor {
             params.status = 'publish'; // Default to published posts only
           }
           
+          // DEBUG: Log what we're requesting
+          this.logger.info(`[DEBUG] API Request: ${endpoint}`);
+          this.logger.info(`[DEBUG] Params: ${JSON.stringify(params)}`);
+          this.logger.info(`[DEBUG] Extraction mode: ${this.extractionMode}`);
+          this.logger.info(`[DEBUG] Auth method: ${this.config.source.auth?.method || 'none'}`);
+          
           try {
             const batch = await this.sourceAPI.get(endpoint, params);
+            
+            // DEBUG: Log what we got back
+            this.logger.info(`[DEBUG] Received ${batch.length} items on page ${page}`);
+            if (batch.length > 0) {
+              this.logger.info(`[DEBUG] First item: id=${batch[0].id}, status=${batch[0].status}, title=${batch[0].title?.rendered}`);
+            }
             
             if (batch.length === 0) {
               hasMore = false;
@@ -96,8 +108,20 @@ class ContentExtractor {
           }
         }
         
+        // DEBUG: Log pre-filter count
+        this.logger.info(`[DEBUG] Total items before filtering: ${items.length}`);
+        items.forEach((item, idx) => {
+          if (idx < 5) { // Log first 5 items
+            this.logger.info(`[DEBUG] Item ${idx + 1}: id=${item.id}, status=${item.status}, title=${item.title?.rendered}`);
+          }
+        });
+        
         // Filter out excluded items
+        const itemsBeforeFilter = items.length;
         items = this.filterExcludedItems(items, contentType);
+        
+        // DEBUG: Log post-filter count
+        this.logger.info(`[DEBUG] Items after filtering: ${items.length} (removed ${itemsBeforeFilter - items.length})`);
         
         manifest.content_types[contentType] = {
           count: items.length,
