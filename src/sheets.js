@@ -389,7 +389,7 @@ async function updateJobRow(jobId, updates) {
     await retryWithBackoff(async () => {
       return await sheets.spreadsheets.values.update({
         spreadsheetId,
-        range: `Jobs!A${rowIndex}:M${rowIndex}`,
+        range: `Jobs!A${rowIndex}:N${rowIndex}`,
         valueInputOption: 'RAW',
         requestBody: {
           values: [row]

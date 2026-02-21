@@ -196,7 +196,7 @@ class JobManager {
       
       const response = await sheetsApi.spreadsheets.values.get({
         spreadsheetId,
-        range: 'Jobs!A:M'
+        range: 'Jobs!A:N'
       });
 
       const rows = response.data.values || [];
