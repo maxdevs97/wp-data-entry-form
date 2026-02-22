@@ -42,7 +42,7 @@ class WordPressAPIClient {
     const auth = this.config.auth;
     
     // Handle case where auth is not provided (public API access)
-    if (!auth || !auth.method) {
+    if (!auth || !auth.method || auth.method === 'none') {
       return {
         'Content-Type': 'application/json'
       };

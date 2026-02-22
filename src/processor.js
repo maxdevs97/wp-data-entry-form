@@ -42,11 +42,19 @@ function createMigrationConfig(submissionData, jobId) {
     source: {
       url: submissionData.sourceUrl.replace(/\/$/, ''), // Remove trailing slash
       rest_endpoint: '/wp-json/wp/v2',
-      auth: {
+      // Only use auth for source if separate source credentials provided
+      // OR if source and destination are the same site
+      auth: submissionData.sourceWpUsername ? {
+        method: 'application_password',
+        username: submissionData.sourceWpUsername,
+        password: submissionData.sourceWpPassword
+      } : (submissionData.sourceUrl === submissionData.destinationUrl ? {
         method: 'application_password',
         username: submissionData.wpUsername,
         password: submissionData.wpPassword
-      }
+      } : {
+        method: 'none' // Public REST API access
+      })
     },
     
     // Destination WordPress site
