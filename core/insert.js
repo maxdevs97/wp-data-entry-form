@@ -34,18 +34,40 @@ class ContentInserter {
       
       // Step 2: Upload featured image if exists
       let featuredMediaId = null;
-      if (transformed.featured_image && transformed.featured_image.localPath) {
-        try {
-          const uploaded = await this.mediaHandler.uploadToWordPress(
-            transformed.featured_image.localPath,
-            this.destAPI,
-            { alt: transformed.featured_image.alt }
-          );
-          featuredMediaId = uploaded.id;
-          this.logger.info(`Uploaded featured image: ${uploaded.id}`);
-        } catch (err) {
-          this.logger.warn('Failed to upload featured image', { error: err.message });
+      if (transformed.featured_image) {
+        this.logger.info(`Processing featured image for: ${transformed.title}`);
+        this.logger.debug(`Featured image data: ${JSON.stringify({
+          hasLocalPath: !!transformed.featured_image.localPath,
+          url: transformed.featured_image.url,
+          alt: transformed.featured_image.alt
+        })}`);
+        
+        if (transformed.featured_image.localPath) {
+          // Verify the file exists before attempting upload
+          if (!fs.existsSync(transformed.featured_image.localPath)) {
+            this.logger.error(`❌ Featured image file not found: ${transformed.featured_image.localPath}`);
+            this.logger.warn('Featured image will NOT be set for this post');
+          } else {
+            try {
+              this.logger.info(`Uploading featured image from: ${transformed.featured_image.localPath}`);
+              const uploaded = await this.mediaHandler.uploadToWordPress(
+                transformed.featured_image.localPath,
+                this.destAPI,
+                { alt: transformed.featured_image.alt }
+              );
+              featuredMediaId = uploaded.id;
+              this.logger.success(`✅ Featured image uploaded: Media ID ${uploaded.id}`);
+            } catch (err) {
+              this.logger.error(`❌ Failed to upload featured image: ${err.message}`);
+              this.logger.warn('Featured image will NOT be set for this post');
+            }
+          }
+        } else {
+          this.logger.warn('Featured image has no localPath - skipping upload');
+          this.logger.warn('This may indicate the image failed to download during extraction');
         }
+      } else {
+        this.logger.debug('No featured image found in transformed content');
       }
       
       // Step 3: Upload inline images
@@ -103,6 +125,15 @@ class ContentInserter {
       const createdPost = await this.destAPI.post(endpoint, postData);
       
       this.logger.success(`Created ${transformed.content_type} #${createdPost.id}: "${transformed.title}"`);
+      
+      // Verify featured image was set
+      if (featuredMediaId) {
+        if (createdPost.featured_media === featuredMediaId) {
+          this.logger.success(`✅ Featured image confirmed on post: Media ID ${createdPost.featured_media}`);
+        } else {
+          this.logger.error(`❌ Featured image NOT set on post (expected ${featuredMediaId}, got ${createdPost.featured_media})`);
+        }
+      }
       
       // Step 6: Insert ACF fields if present
       if (transformed.acf && Object.keys(transformed.acf).length > 0) {

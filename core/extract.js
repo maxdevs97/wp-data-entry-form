@@ -451,6 +451,7 @@ class ContentExtractor {
       // Fetch featured image
       let featuredImage = null;
       if (item.featured_media && item.featured_media > 0) {
+        this.logger.info(`Found featured_media ID ${item.featured_media} - fetching details...`);
         try {
           const mediaEndpoint = this.config.source.rest_endpoint + `/media/${item.featured_media}`;
           const media = await this.sourceAPI.get(mediaEndpoint);
@@ -460,12 +461,22 @@ class ContentExtractor {
             alt: media.alt_text || ''
           };
           
+          this.logger.info(`Fetched featured media: ${media.source_url}`);
+          this.logger.info(`Downloading featured image to local cache...`);
+          
           // Download featured image
           const localPath = await this.mediaHandler.downloadImage(featuredImage.url, itemId);
           featuredImage.localPath = localPath;
+          
+          this.logger.success(`✅ Featured image ready: ${localPath}`);
         } catch (err) {
-          this.logger.warn(`Failed to fetch featured image: ${item.featured_media}`);
+          this.logger.error(`❌ Failed to fetch/download featured image (ID: ${item.featured_media}): ${err.message}`);
+          this.logger.warn('Post will be migrated WITHOUT featured image');
+          // Set featuredImage to null so it's clear in the snapshot
+          featuredImage = null;
         }
+      } else {
+        this.logger.debug('No featured_media field or ID is 0 - post has no featured image');
       }
       
       // Fetch taxonomies (categories, tags, custom taxonomies)
