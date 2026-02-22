@@ -1,14 +1,10 @@
 // DOM Elements
-const loginScreen = document.getElementById('loginScreen');
 const formScreen = document.getElementById('formScreen');
-const loginForm = document.getElementById('loginForm');
 const migrationForm = document.getElementById('migrationForm');
-const loginError = document.getElementById('loginError');
 const formError = document.getElementById('formError');
 const formSuccess = document.getElementById('formSuccess');
 
 // State
-let accessPassword = '';
 let pollingInterval = null;
 let currentJobId = null;
 
@@ -34,42 +30,6 @@ function getTextareaArrayData(textareaId) {
     .filter(line => line.length > 0);
 }
 
-// Login Form Handler
-loginForm.addEventListener('submit', async (e) => {
-  e.preventDefault();
-  
-  const password = document.getElementById('password').value;
-  const submitBtn = loginForm.querySelector('button[type="submit"]');
-  
-  submitBtn.classList.add('loading');
-  submitBtn.disabled = true;
-  hideMessage(loginError);
-  
-  try {
-    const response = await fetch('/api/verify-password', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ password })
-    });
-    
-    const data = await response.json();
-    
-    if (data.valid) {
-      accessPassword = password;
-      loginScreen.classList.remove('active');
-      formScreen.classList.add('active');
-      loginForm.reset();
-    } else {
-      showMessage(loginError, 'Invalid password. Please try again.');
-    }
-  } catch (error) {
-    showMessage(loginError, 'Connection error. Please try again.');
-  } finally {
-    submitBtn.classList.remove('loading');
-    submitBtn.disabled = false;
-  }
-});
-
 // Migration Form Handler
 migrationForm.addEventListener('submit', async (e) => {
   e.preventDefault();
@@ -86,7 +46,6 @@ migrationForm.addEventListener('submit', async (e) => {
     const postTypesChecked = document.getElementById('contentTypePostTypes').checked;
     
     const formData = {
-      password: accessPassword,
       sourceUrl: document.getElementById('sourceUrl').value.trim(),
       destinationUrl: document.getElementById('destinationUrl').value.trim(),
       wpUsername: document.getElementById('wpUsername').value.trim(),
@@ -202,7 +161,7 @@ function hideMessage(element) {
 });
 
 // Auto-focus first field
-document.getElementById('password').focus();
+document.getElementById('sourceUrl').focus();
 
 // Results Screen Management
 function showResultsScreen(jobId, formData) {

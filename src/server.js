@@ -52,27 +52,9 @@ app.get('/status', (req, res) => {
 //   }
 // });
 
-// Password check middleware
-const checkPassword = (req, res, next) => {
-  const { password } = req.body;
-  if (password !== process.env.FORM_PASSWORD) {
-    return res.status(401).json({ error: 'Invalid password' });
-  }
-  next();
-};
-
 // Health check
 app.get('/health', (req, res) => {
   res.json({ status: 'ok', timestamp: new Date().toISOString() });
-});
-
-// Password verification endpoint
-app.post('/api/verify-password', (req, res) => {
-  const { password } = req.body;
-  if (password === process.env.FORM_PASSWORD) {
-    return res.json({ valid: true });
-  }
-  res.status(401).json({ valid: false, error: 'Invalid password' });
 });
 
 // Job status endpoint
@@ -243,7 +225,7 @@ app.post('/api/retry', async (req, res) => {
 });
 
 // Restore backup endpoint
-app.post('/api/restore/:jobId', checkPassword, async (req, res) => {
+app.post('/api/restore/:jobId', async (req, res) => {
   try {
     const { jobId } = req.params;
     const job = await jobManager.getJob(jobId);
@@ -287,7 +269,7 @@ app.post('/api/restore/:jobId', checkPassword, async (req, res) => {
 });
 
 // Main submission endpoint
-app.post('/api/submit', checkPassword, async (req, res) => {
+app.post('/api/submit', async (req, res) => {
   try {
     const {
       sourceUrl,

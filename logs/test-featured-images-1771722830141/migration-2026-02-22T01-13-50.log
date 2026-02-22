@@ -1,0 +1,62 @@
+[2026-02-22T01:13:50.142Z] [INFO] === FEATURED IMAGE MIGRATION TEST ===
+[2026-02-22T01:13:50.142Z] [INFO] Job ID: test-featured-images-1771722830141
+[2026-02-22T01:13:50.142Z] [INFO] \n--- STEP 1: EXTRACTION ---
+[2026-02-22T01:13:50.143Z] [INFO] Starting site cataloging (mode: authenticated)...
+[2026-02-22T01:13:50.144Z] [INFO] Cataloging posts...
+[2026-02-22T01:13:52.135Z] [ERROR] GET request failed: /wp-json/wp/v2/posts | {"error":"Request failed with status code 400","status":400}
+[2026-02-22T01:13:52.137Z] [SUCCESS] Found 9 posts
+[2026-02-22T01:13:52.138Z] [SUCCESS] Catalog complete: 9 items found
+[2026-02-22T01:13:52.138Z] [INFO] Manifest saved to: content-snapshots/test-featured-images-1771722830141/source-site-manifest.json
+[2026-02-22T01:13:52.138Z] [INFO] Extracting post: How to Teach a Toddler to Swim | Helpful Advice For Parents (ID: 1067)
+[2026-02-22T01:13:52.138Z] [INFO] Extracting post #1067 (authenticated)...
+[2026-02-22T01:13:52.194Z] [INFO] Found featured_media ID 1068 - fetching details...
+[2026-02-22T01:13:52.226Z] [INFO] Fetched featured media: https://mybabyswims.com/wp-content/uploads/2026/01/teaching-toddlers-to-swim-1.png
+[2026-02-22T01:13:52.226Z] [INFO] Downloading featured image to local cache...
+[2026-02-22T01:13:52.227Z] [INFO] Downloading image: https://mybabyswims.com/wp-content/uploads/2026/01/teaching-toddlers-to-swim-1.png
+[2026-02-22T01:13:52.320Z] [SUCCESS] Downloaded: teaching-toddlers-to-swim-1.png (124.46 KB)
+[2026-02-22T01:13:52.321Z] [SUCCESS] ✅ Featured image ready: migration-assets/test-featured-images-1771722830141/1067/teaching-toddlers-to-swim-1.png
+[2026-02-22T01:13:52.356Z] [SUCCESS] Extracted post #1067: "How to Teach a Toddler to Swim | Helpful Advice For Parents"
+[2026-02-22T01:13:52.356Z] [INFO]   Word count: 1997
+[2026-02-22T01:13:52.356Z] [INFO]   Images: 0
+[2026-02-22T01:13:52.357Z] [INFO]   Links: 4
+[2026-02-22T01:13:52.357Z] [INFO]   Tables: 0
+[2026-02-22T01:13:52.357Z] [INFO]   Taxonomies: 3 types
+[2026-02-22T01:13:52.357Z] [SUCCESS] Extraction complete
+[2026-02-22T01:13:52.357Z] [INFO] \nFeatured image in snapshot: YES
+[2026-02-22T01:13:52.357Z] [INFO]   URL: https://mybabyswims.com/wp-content/uploads/2026/01/teaching-toddlers-to-swim-1.png
+[2026-02-22T01:13:52.357Z] [INFO]   Local path: migration-assets/test-featured-images-1771722830141/1067/teaching-toddlers-to-swim-1.png
+[2026-02-22T01:13:52.357Z] [INFO]   File exists: YES
+[2026-02-22T01:13:52.357Z] [INFO] \n--- STEP 2: TRANSFORMATION ---
+[2026-02-22T01:13:52.357Z] [INFO] Transforming: post-1067.json
+[2026-02-22T01:13:52.366Z] [SUCCESS] Transformed: How to Teach a Toddler to Swim | Helpful Advice For Parents
+[2026-02-22T01:13:52.366Z] [SUCCESS] Transformation complete
+[2026-02-22T01:13:52.367Z] [INFO] \nFeatured image in transformed: YES
+[2026-02-22T01:13:52.367Z] [INFO]   URL: https://mybabyswims.com/wp-content/uploads/2026/01/teaching-toddlers-to-swim-1.png
+[2026-02-22T01:13:52.367Z] [INFO]   Local path: migration-assets/test-featured-images-1771722830141/1067/teaching-toddlers-to-swim-1.png
+[2026-02-22T01:13:52.367Z] [INFO]   File exists: YES
+[2026-02-22T01:13:52.367Z] [INFO] \n--- STEP 3: INSERTION ---
+[2026-02-22T01:13:52.368Z] [INFO] Loaded media cache: 1 downloaded, 0 uploaded
+[2026-02-22T01:13:52.369Z] [INFO] Inserting: post-1067.json
+[2026-02-22T01:13:52.370Z] [INFO] Ensuring 1 categories exist...
+[2026-02-22T01:13:52.690Z] [DEBUG] Found existing categories term: Blog (ID: 9)
+[2026-02-22T01:13:52.690Z] [INFO] Processing featured image for: How to Teach a Toddler to Swim | Helpful Advice For Parents
+[2026-02-22T01:13:52.690Z] [DEBUG] Featured image data: {"hasLocalPath":true,"url":"https://mybabyswims.com/wp-content/uploads/2026/01/teaching-toddlers-to-swim-1.png","alt":"mother teaching two toddlers to swim in the pool"}
+[2026-02-22T01:13:52.691Z] [INFO] Uploading featured image from: migration-assets/test-featured-images-1771722830141/1067/teaching-toddlers-to-swim-1.png
+[2026-02-22T01:13:52.691Z] [INFO] Uploading to WordPress: teaching-toddlers-to-swim-1.png
+[2026-02-22T01:13:54.454Z] [SUCCESS] Uploaded: teaching-toddlers-to-swim-1.png -> ID 246
+[2026-02-22T01:13:54.454Z] [SUCCESS] ✅ Featured image uploaded: Media ID 246
+[2026-02-22T01:13:55.880Z] [SUCCESS] Created post #247: "How to Teach a Toddler to Swim | Helpful Advice For Parents"
+[2026-02-22T01:13:55.880Z] [SUCCESS] ✅ Featured image confirmed on post: Media ID 246
+[2026-02-22T01:13:56.487Z] [SUCCESS] Inserted Yoast meta for post #247
+[2026-02-22T01:13:56.488Z] [INFO] Result saved: insertion-results/post-1067.json
+[2026-02-22T01:13:56.488Z] [SUCCESS] Insertion complete
+[2026-02-22T01:13:56.488Z] [INFO] \nFeatured media ID on destination: 246
+[2026-02-22T01:13:56.488Z] [INFO] Destination post ID: 247
+[2026-02-22T01:13:56.488Z] [INFO] Destination URL: https://mbstest3.sherstaging.com/2026/01/15/how-to-teach-a-toddler-to-swim-5/
+[2026-02-22T01:13:56.489Z] [INFO] \n--- STEP 4: VERIFICATION ---
+[2026-02-22T01:13:56.740Z] [INFO] \nPost title: How to Teach a Toddler to Swim | Helpful Advice For Parents
+[2026-02-22T01:13:56.741Z] [INFO] Featured media ID: 246
+[2026-02-22T01:13:56.741Z] [SUCCESS] \n✅ FEATURED IMAGE MIGRATION SUCCESSFUL!
+[2026-02-22T01:13:56.741Z] [SUCCESS]    Post ID: 247
+[2026-02-22T01:13:56.741Z] [SUCCESS]    Featured Media ID: 246
+[2026-02-22T01:13:56.741Z] [SUCCESS]    Media URL: https://mbstest3.sherstaging.com/wp-content/uploads/2026/02/teaching-toddlers-to-swim-1-1.png
