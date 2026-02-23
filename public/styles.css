@@ -945,3 +945,49 @@ select {
     font-size: 20px;
   }
 }
+
+/* QA Section Styles */
+.qa-summary {
+  margin-bottom: 24px;
+}
+
+.qa-details {
+  margin-top: 16px;
+}
+
+.score-badge {
+  display: inline-block;
+  padding: 6px 14px;
+  border-radius: 20px;
+  font-weight: 600;
+  font-size: 13px;
+  letter-spacing: 0.3px;
+}
+
+.score-badge.score-success {
+  background: rgba(0, 212, 170, 0.2);
+  color: var(--success);
+  border: 1px solid var(--success);
+}
+
+.score-badge.score-warning {
+  background: rgba(255, 217, 61, 0.2);
+  color: var(--warning);
+  border: 1px solid var(--warning);
+}
+
+.score-badge.score-error {
+  background: rgba(255, 107, 107, 0.2);
+  color: var(--error);
+  border: 1px solid var(--error);
+}
+
+.status-badge.status-failed {
+  background: rgba(255, 107, 107, 0.2);
+  color: var(--error);
+  padding: 4px 12px;
+  border-radius: 12px;
+  font-size: 12px;
+  font-weight: 600;
+  text-transform: uppercase;
+}

@@ -187,6 +187,85 @@ function showResults(job) {
     document.getElementById('backupTimestamp').textContent = job.backupInfo.timestamp || '-';
     document.getElementById('backupLocation').textContent = job.backupInfo.directory || '-';
   }
+  
+  // Load and display QA results
+  loadQAResults(job.jobId);
+}
+
+async function loadQAResults(jobId) {
+  try {
+    console.log('📊 Loading QA results for job:', jobId);
+    
+    const response = await fetch(`/api/qa-summary/${jobId}`);
+    
+    if (!response.ok) {
+      console.warn('⚠️ QA summary not available (may still be generating)');
+      return;
+    }
+    
+    const qaSummary = await response.json();
+    console.log('✅ QA summary loaded:', qaSummary);
+    
+    displayQAResults(qaSummary, jobId);
+  } catch (error) {
+    console.error('❌ Failed to load QA results:', error);
+  }
+}
+
+function displayQAResults(qaSummary, jobId) {
+  const qaSection = document.getElementById('qaSection');
+  if (!qaSection) return;
+  
+  // Show QA section
+  qaSection.style.display = 'block';
+  
+  // Update summary numbers
+  document.getElementById('qaPassedCount').textContent = qaSummary.passed || 0;
+  document.getElementById('qaFailedCount').textContent = qaSummary.failed || 0;
+  document.getElementById('qaAverageScore').textContent = (qaSummary.average_score || 0).toFixed(1) + '%';
+  
+  // Setup view detailed report button
+  const viewReportBtn = document.getElementById('viewQAReportButton');
+  if (viewReportBtn) {
+    viewReportBtn.onclick = () => {
+      window.open(`/api/qa-report/${jobId}`, '_blank');
+    };
+  }
+  
+  // Populate QA table
+  const qaTableBody = document.getElementById('qaTableBody');
+  if (qaTableBody) {
+    qaTableBody.innerHTML = '';
+    
+    if (qaSummary.items && qaSummary.items.length > 0) {
+      qaSummary.items.forEach(item => {
+        const scoreClass = item.overall_score >= 90 ? 'success' : 
+                          item.overall_score >= 70 ? 'warning' : 'error';
+        
+        const statusBadge = item.passed 
+          ? '<span class="status-badge status-complete">✓ Passed</span>'
+          : '<span class="status-badge status-failed">✗ Failed</span>';
+        
+        // Get issues summary
+        const issues = item.errors && item.errors.length > 0
+          ? item.errors.slice(0, 2).map(e => e.check.replace(/_/g, ' ')).join(', ')
+          : 'None';
+        
+        const row = document.createElement('tr');
+        row.innerHTML = `
+          <td><strong>${escapeHtml(item.title)}</strong></td>
+          <td><span class="score-badge score-${scoreClass}">${item.overall_score}%</span></td>
+          <td>${statusBadge}</td>
+          <td><span style="font-size: 13px; color: var(--text-secondary);">${escapeHtml(issues)}</span></td>
+        `;
+        qaTableBody.appendChild(row);
+      });
+    } else {
+      qaTableBody.innerHTML = '<tr><td colspan="4" style="text-align: center; color: var(--text-secondary);">No QA data available</td></tr>';
+    }
+  }
+  
+  console.log('✅ QA results displayed');
 }
 
 function showError(job) {

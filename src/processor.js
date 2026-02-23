@@ -5,7 +5,7 @@ const Logger = require('../utils/logger');
 const ContentExtractor = require('../core/extract');
 const ContentTransformer = require('../core/transform');
 const ContentInserter = require('../core/insert');
-const ContentVerifier = require('../core/verify');
+const ContentVerifier = require('../core/verify-enhanced');
 const BackupManager = require('../lib/backup');
 const { parsePostTypes } = require('../utils/post-type-parser');
 

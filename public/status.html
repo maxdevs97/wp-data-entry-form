@@ -74,6 +74,48 @@
             </div>
           </section>
 
+          <section class="results-section" id="qaSection" style="display: none;">
+            <h2>✅ Quality Assurance Report</h2>
+            <div class="qa-summary" id="qaSummary">
+              <div class="summary-grid">
+                <div class="summary-item success">
+                  <div class="summary-number" id="qaPassedCount">-</div>
+                  <div class="summary-label">Passed QA</div>
+                </div>
+                <div class="summary-item error">
+                  <div class="summary-number" id="qaFailedCount">-</div>
+                  <div class="summary-label">Failed QA</div>
+                </div>
+                <div class="summary-item info">
+                  <div class="summary-number" id="qaAverageScore">-</div>
+                  <div class="summary-label">Average Score</div>
+                </div>
+              </div>
+            </div>
+            <div class="qa-details" id="qaDetails">
+              <p style="margin-bottom: 16px; color: var(--text-secondary);">
+                Every migrated post was automatically verified for content accuracy, SEO structure, images, and more.
+              </p>
+              <button id="viewQAReportButton" class="btn btn-accent" style="margin-bottom: 16px;">
+                📊 View Detailed QA Report
+              </button>
+              <div class="table-wrapper">
+                <table class="results-table">
+                  <thead>
+                    <tr>
+                      <th>Post Title</th>
+                      <th>QA Score</th>
+                      <th>Status</th>
+                      <th>Issues</th>
+                    </tr>
+                  </thead>
+                  <tbody id="qaTableBody">
+                  </tbody>
+                </table>
+              </div>
+            </div>
+          </section>
+
           <section class="results-section" id="backupSection" style="display: none;">
             <h2>🔄 Backup & Restore</h2>
             <div class="backup-info">

@@ -373,6 +373,45 @@ app.post('/api/submit', async (req, res) => {
   }
 });
 
+// QA Summary endpoint
+app.get('/api/qa-summary/:jobId', async (req, res) => {
+  try {
+    const { jobId } = req.params;
+    const fs = require('fs-extra');
+    const qaDir = path.join(__dirname, '../qa-reports', jobId);
+    const summaryPath = path.join(qaDir, 'qa-summary.json');
+    
+    if (!fs.existsSync(summaryPath)) {
+      return res.status(404).json({ error: 'QA summary not found' });
+    }
+    
+    const summary = fs.readJsonSync(summaryPath);
+    res.json(summary);
+  } catch (error) {
+    console.error('QA summary error:', error);
+    res.status(500).json({ error: 'Failed to retrieve QA summary' });
+  }
+});
+
+// QA Report HTML endpoint
+app.get('/api/qa-report/:jobId', async (req, res) => {
+  try {
+    const { jobId } = req.params;
+    const fs = require('fs-extra');
+    const qaDir = path.join(__dirname, '../qa-reports', jobId);
+    const reportPath = path.join(qaDir, 'qa-report.html');
+    
+    if (!fs.existsSync(reportPath)) {
+      return res.status(404).send('<html><body><h1>QA Report Not Found</h1><p>The QA report for this job is not available yet.</p></body></html>');
+    }
+    
+    res.sendFile(reportPath);
+  } catch (error) {
+    console.error('QA report error:', error);
+    res.status(500).send('<html><body><h1>Error</h1><p>Failed to load QA report.</p></body></html>');
+  }
+});
+
 // 404 handler
 app.use((req, res) => {
   res.status(404).json({ error: 'Not found' });
