@@ -52,8 +52,8 @@ migrationForm.addEventListener('submit', async (e) => {
       wpPassword: document.getElementById('wpPassword').value,
       contentTypeCertainPages: certainPagesChecked,
       contentTypePostTypes: postTypesChecked,
-      certainPages: certainPagesChecked ? getTextareaArrayData('certainPagesTextarea') : [],
-      postTypes: postTypesChecked ? getTextareaArrayData('postTypesTextarea') : [],
+      certainPagesTextarea: certainPagesChecked ? document.getElementById('certainPagesTextarea').value : '',
+      postTypesTextarea: postTypesChecked ? document.getElementById('postTypesTextarea').value : '',
       specialInstructions: document.getElementById('specialInstructions').value.trim(),
       preserve: {
         slug: document.getElementById('preserveSlug').checked,
@@ -76,7 +76,7 @@ migrationForm.addEventListener('submit', async (e) => {
       return;
     }
     
-    const response = await fetch('/api/submit', {
+    const response = await fetch('/api/submit-to-kit', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify(formData)
@@ -126,11 +126,11 @@ function validateForm(data) {
     return { valid: false, error: 'Please select at least one content type (Certain Pages or Post Types).' };
   }
   
-  if (data.contentTypeCertainPages && data.certainPages.length === 0) {
+  if (data.contentTypeCertainPages && (!data.certainPagesTextarea || data.certainPagesTextarea.trim().length === 0)) {
     return { valid: false, error: 'Please specify at least one page to migrate.' };
   }
   
-  if (data.contentTypePostTypes && data.postTypes.length === 0) {
+  if (data.contentTypePostTypes && (!data.postTypesTextarea || data.postTypesTextarea.trim().length === 0)) {
     return { valid: false, error: 'Please specify at least one post type to migrate.' };
   }
   

@@ -12,6 +12,7 @@ const { sendConfirmationEmail } = require('./email');
 const { logFeedbackToSheet, sendFeedbackNotificationEmail } = require('./feedback');
 const jobManager = require('./jobs');
 const { processJob } = require('./processor');
+const { interpretWithAI, validateInputs } = require('./kit-ai-interpreter');
 
 const app = express();
 const PORT = process.env.PORT || 3000;
@@ -268,7 +269,199 @@ app.post('/api/restore/:jobId', async (req, res) => {
   }
 });
 
-// Main submission endpoint
+// Kit AI Interpretation Endpoint (NEW FLOW)
+app.post('/api/submit-to-kit', async (req, res) => {
+  try {
+    console.log('🎯 Kit AI Endpoint - Received submission');
+    
+    // Extract raw form data
+    const {
+      sourceUrl,
+      destinationUrl,
+      wpUsername,
+      wpPassword,
+      contentTypeCertainPages,
+      contentTypePostTypes,
+      certainPagesTextarea,
+      postTypesTextarea,
+      specialInstructions,
+      preserve
+    } = req.body;
+    
+    // Basic validation
+    const validation = validateInputs({
+      sourceUrl,
+      destinationUrl,
+      wpUsername,
+      wpPassword
+    });
+    
+    if (!validation.valid) {
+      return res.status(400).json({ 
+        error: validation.errors.join(', ')
+      });
+    }
+    
+    // Test WP REST API connection (fail fast)
+    console.log('🔌 Testing WordPress connection...');
+    const wpConnection = await testWPConnection(destinationUrl, wpUsername, wpPassword);
+    if (!wpConnection.valid) {
+      return res.status(400).json({ 
+        error: `WordPress connection failed: ${wpConnection.error}`,
+        details: 'Please verify the destination URL and credentials are correct.'
+      });
+    }
+    console.log('✅ WordPress connection successful');
+    
+    // Create job with status "processing_by_kit"
+    const submissionData = {
+      timestamp: new Date().toISOString(),
+      requesterName: 'Team Member',
+      requesterEmail: 'team@sheragency.com',
+      priority: 'Normal',
+      sourceUrl,
+      destinationUrl,
+      wpUsername,
+      wpPassword,
+      contentTypeCertainPages: contentTypeCertainPages || false,
+      contentTypePostTypes: contentTypePostTypes || false,
+      certainPagesRaw: certainPagesTextarea || '',
+      postTypesRaw: postTypesTextarea || '',
+      specialInstructions: specialInstructions || '',
+      preserve: preserve || {},
+      status: 'Processing by Kit'
+    };
+    
+    console.log('📝 Creating job with status: processing_by_kit');
+    const job = await jobManager.createJob(submissionData);
+    
+    // Update job status to processing_by_kit
+    await jobManager.updateJob(job.jobId, {
+      status: 'processing_by_kit',
+      progress: {
+        stage: 'kit_interpreting',
+        message: 'Kit is interpreting your request...',
+        percentComplete: 5,
+        itemsProcessed: 0,
+        itemsTotal: 0
+      }
+    });
+    
+    console.log(`✅ Job ${job.jobId} created with status: processing_by_kit`);
+    
+    // Log to Google Sheets immediately (without credentials)
+    const safeSubmissionData = { ...submissionData };
+    delete safeSubmissionData.wpUsername;
+    delete safeSubmissionData.wpPassword;
+    await logToGoogleSheet({ 
+      ...safeSubmissionData, 
+      jobId: job.jobId,
+      status: 'Processing by Kit'
+    });
+    
+    // Return jobId immediately for status polling
+    res.json({
+      success: true,
+      message: 'Kit is interpreting your request...',
+      jobId: job.jobId
+    });
+    
+    // Background processing: AI interpretation + Forge spawning
+    (async () => {
+      try {
+        console.log(`🤖 [${job.jobId}] Starting AI interpretation...`);
+        
+        // Update progress
+        await jobManager.updateProgress(job.jobId, {
+          stage: 'kit_interpreting',
+          message: 'Interpreting content selections...',
+          percentComplete: 10
+        });
+        
+        // Call AI interpreter
+        const interpretationResult = await interpretWithAI({
+          contentTypeCertainPages,
+          contentTypePostTypes,
+          certainPagesRaw: certainPagesTextarea || '',
+          postTypesRaw: postTypesTextarea || '',
+          specialInstructions: specialInstructions || ''
+        });
+        
+        console.log(`✅ [${job.jobId}] AI interpretation complete:`, JSON.stringify(interpretationResult.interpretation, null, 2));
+        
+        // Update job with interpreted data
+        const interpretedData = {
+          ...submissionData,
+          certainPages: interpretationResult.interpretation.certainPages,
+          postTypes: interpretationResult.interpretation.postTypes,
+          specialInstructions: interpretationResult.interpretation.specialInstructions,
+          aiInterpretation: interpretationResult,
+          status: 'In Progress'
+        };
+        
+        await jobManager.updateJob(job.jobId, {
+          submissionData: interpretedData,
+          progress: {
+            stage: 'starting_migration',
+            message: 'Starting migration with interpreted parameters...',
+            percentComplete: 15
+          }
+        });
+        
+        console.log(`✅ [${job.jobId}] Updated job with interpreted data`);
+        
+        // Add to Kit's backlog with interpreted data
+        const contentTypeDisplay = [];
+        if (interpretationResult.interpretation.certainPages.length > 0) {
+          contentTypeDisplay.push(`Certain Pages: ${interpretationResult.interpretation.certainPages.join(', ')}`);
+        }
+        if (interpretationResult.interpretation.postTypes.length > 0) {
+          contentTypeDisplay.push(`Post Types: ${interpretationResult.interpretation.postTypes.join(', ')}`);
+        }
+        
+        await addToKitBacklog({
+          ...interpretedData,
+          jobId: job.jobId,
+          contentType: contentTypeDisplay.join(' | '),
+          contentTypeDisplay: contentTypeDisplay.join(' | ')
+        });
+        
+        console.log(`📋 [${job.jobId}] Added to Kit's backlog`);
+        
+        // Update status to in_progress
+        await jobManager.updateJob(job.jobId, {
+          status: 'running',
+          progress: {
+            stage: 'starting_migration',
+            message: 'Migration framework initializing...',
+            percentComplete: 20
+          }
+        });
+        
+        // Spawn Forge (call processJob)
+        console.log(`🚀 [${job.jobId}] Spawning Forge to execute migration...`);
+        await processJob(job.jobId);
+        
+        console.log(`✅ [${job.jobId}] Migration complete!`);
+        
+      } catch (error) {
+        console.error(`❌ [${job.jobId}] Background processing error:`, error);
+        
+        // Update job with error
+        await jobManager.failJob(job.jobId, error);
+      }
+    })();
+    
+  } catch (error) {
+    console.error('❌ Kit AI endpoint error:', error);
+    res.status(500).json({ 
+      error: 'Internal server error. Please try again or contact support.',
+      details: process.env.NODE_ENV === 'development' ? error.message : undefined
+    });
+  }
+});
+
+// Main submission endpoint (LEGACY - kept for backward compatibility)
 app.post('/api/submit', async (req, res) => {
   try {
     const {
