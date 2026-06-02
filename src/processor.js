@@ -42,6 +42,7 @@ function createMigrationConfig(submissionData, jobId) {
     source: {
       url: submissionData.sourceUrl.replace(/\/$/, ''), // Remove trailing slash
       rest_endpoint: '/wp-json/wp/v2',
+      extraction_mode: 'frontend', // Always crawl source frontend — we never have source credentials
       // Only use auth for source if separate source credentials provided
       // OR if source and destination are the same site
       auth: submissionData.sourceWpUsername ? {
