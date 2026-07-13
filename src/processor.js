@@ -38,8 +38,9 @@ function createMigrationConfig(submissionData, jobId) {
   const config = {
     project_name: `migration-${jobId}`,
     
-    // Always use frontend crawl for source — we never have source site credentials
-    extraction_mode: 'frontend',
+    // Use unauthenticated REST API for source — faster and more reliable than frontend scraping,
+    // and works even on Elementor/page-builder sites where HTML selectors don't match
+    extraction_mode: 'unauthenticated',
     
     // Source WordPress site
     source: {
